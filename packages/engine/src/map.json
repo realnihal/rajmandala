@@ -18,7 +18,7 @@
   {
    "id": "central",
    "name": "Central Heartland",
-   "bonus": 6
+   "bonus": 7
   },
   {
    "id": "south",
@@ -28,7 +28,7 @@
   {
    "id": "northeast",
    "name": "Northeast",
-   "bonus": 4
+   "bonus": 3
   }
  ],
  "territories": [

@@ -19,7 +19,10 @@ import {
   viewFor,
 } from '@rajmandala/engine';
 import type { Action, CardId, GameEvent, GameState, GameView, PlayerId, TerritoryId, VictoryMode } from '@rajmandala/engine';
+import type { ChatLine } from '@rajmandala/server';
 import Board from './Board';
+import { Rules } from './Rules';
+import { isMuted, play, setMuted } from './sound';
 import { describe } from './describe';
 import { NEUTRAL_COLOR, PLAYER_COLORS } from './theme';
 
@@ -41,6 +44,8 @@ interface RollAnim {
   to: TerritoryId;
   next: GameView;
   lines: string[];
+  /** Whether this battle ended with the territory changing hands. */
+  captured: boolean;
 }
 
 /** The latest picture of the game and what just happened, from the local engine or from the server. */
@@ -245,9 +250,22 @@ export interface GameProps {
   finished: ReactNode;
   /** Extra content at the top of the side panel, such as connection status. */
   banner?: ReactNode;
+  /** When the current turn is played automatically, on this device's clock; null if untimed. */
+  deadline?: number | null;
+  chat?: ChatLine[];
+  onChat?: (text: string) => void;
+  /** Offered while this screen's player is still in an online game. */
+  onSurrender?: () => void;
 }
 
-export function Game({ names, update, hotseat = false, viewer, send, serverError, quit, finished, banner }: GameProps) {
+function formatLeft(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  if (s >= 3600) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+export function Game(props: GameProps) {
+  const { names, update, hotseat = false, viewer, send, serverError, quit, finished, banner, deadline = null, chat, onChat, onSurrender } = props;
   const [game, setGame] = useState(update.view);
   const [log, setLog] = useState<string[]>([]);
   const [sel, setSel] = useState<{ from?: TerritoryId; to?: TerritoryId }>({});
@@ -258,6 +276,10 @@ export function Game({ names, update, hotseat = false, viewer, send, serverError
   const [showCards, setShowCards] = useState(!hotseat);
   const [error, setError] = useState('');
   const [anim, setAnim] = useState<RollAnim | null>(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [quiet, setQuiet] = useState(isMuted);
+  const [say, setSay] = useState('');
+  const [clock, setClock] = useState(Date.now);
   const lastSeq = useRef(update.seq);
 
   const name = (id: string) => (id === 'neutral' ? 'the neutral garrison' : (names[id] ?? id));
@@ -299,6 +321,23 @@ export function Game({ names, update, hotseat = false, viewer, send, serverError
   }, [actor, hotseat]);
   useEffect(() => setError(serverError ?? ''), [serverError]);
 
+  // Tell the player it is their turn even if they are looking at another tab.
+  const myTurn = !hotseat && actor !== null && actor === viewer;
+  useEffect(() => {
+    if (myTurn) play('turn');
+    document.title = myTurn ? '● Your turn — Rajmandala' : 'Rajmandala';
+    return () => {
+      document.title = 'Rajmandala';
+    };
+  }, [myTurn]);
+  useEffect(() => {
+    if (deadline === null) return;
+    setClock(Date.now());
+    const id = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [deadline]);
+  const left = deadline !== null && phase !== 'finished' ? deadline - clock : null;
+
   function commit(next: GameView, lines: string[]) {
     setGame(next);
     if (lines.length) setLog((prev) => [...[...lines].reverse(), ...prev].slice(0, 200));
@@ -313,11 +352,13 @@ export function Game({ names, update, hotseat = false, viewer, send, serverError
     const carried = anim ? anim.lines : [];
     if (dice.length) {
       if (carried.length) setLog((prev) => [...[...carried].reverse(), ...prev].slice(0, 200));
-      setAnim({ rolls: dice, i: 0, settled: false, from: dice[0].from, to: dice[0].to, next: update.view, lines });
+      const captured = update.events.some((e) => e.type === 'territoryCaptured');
+      setAnim({ rolls: dice, i: 0, settled: false, from: dice[0].from, to: dice[0].to, next: update.view, lines, captured });
     } else {
       setAnim(null);
       commit(update.view, [...carried, ...lines]);
     }
+    if (update.events.some((e) => e.type === 'gameWon')) play('win');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [update]);
 
@@ -332,6 +373,7 @@ export function Game({ names, update, hotseat = false, viewer, send, serverError
     setAnim(null);
     setRolls(a.rolls);
     commit(a.next, a.lines);
+    if (a.captured) play('capture');
     if (a.next.phase === 'attack' && a.next.territories[a.from].armies < 2) setSel({});
   }
 
@@ -341,7 +383,10 @@ export function Game({ names, update, hotseat = false, viewer, send, serverError
     const blitz = anim.rolls.length > 1;
     const wait = anim.settled ? (blitz ? 700 : 1100) : blitz ? 800 : 1400;
     const id = setTimeout(() => {
-      if (!anim.settled) setAnim({ ...anim, settled: true });
+      if (!anim.settled) {
+        play('dice');
+        setAnim({ ...anim, settled: true });
+      }
       else if (anim.i < anim.rolls.length - 1) setAnim({ ...anim, i: anim.i + 1, settled: false });
       else finishRoll(anim);
     }, wait);
@@ -613,6 +658,19 @@ export function Game({ names, update, hotseat = false, viewer, send, serverError
           onPick={onPick}
         />
         <div className="legend">
+          <button className="chipbtn" onClick={() => setRulesOpen(true)}>
+            How to play
+          </button>
+          <button
+            className="chipbtn"
+            aria-pressed={!quiet}
+            onClick={() => {
+              setMuted(!quiet);
+              setQuiet(!quiet);
+            }}
+          >
+            Sound {quiet ? 'off' : 'on'}
+          </button>
           <span className="chip">
             Troops: <b>■</b> 10 <b>▲</b> 5 <b>●</b> 1
           </span>
@@ -644,6 +702,11 @@ export function Game({ names, update, hotseat = false, viewer, send, serverError
             {inSetup ? 'Setup' : `Round ${game.round}`}
             {monsoon && <span className="badge monsoon">Monsoon</span>}
             {!inSetup && !monsoon && (game.round + 1) % 4 === 0 && <span className="badge">Monsoon next round</span>}
+            {left !== null && (
+              <span className={`badge timer ${left < 15_000 ? 'low' : ''}`} title="Time left before this turn is played automatically">
+                {formatLeft(left)}
+              </span>
+            )}
           </div>
           {!inSetup && phase !== 'finished' && (
             <ol className="steps">
@@ -783,6 +846,33 @@ export function Game({ names, update, hotseat = false, viewer, send, serverError
           </table>
         </section>
 
+        {chat && onChat && (
+          <section className="panel chat">
+            <h2>Chat</h2>
+            <ul>
+              {chat.slice(-12).map((c) => (
+                <li key={c.at + c.from}>
+                  <b style={{ color: colorOf(c.from).fill }}>{c.name}</b> {c.text}
+                </li>
+              ))}
+            </ul>
+            {viewer && (
+              <form
+                className="row"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!say.trim()) return;
+                  onChat(say);
+                  setSay('');
+                }}
+              >
+                <input value={say} maxLength={200} placeholder="Say something" aria-label="Chat message" onChange={(e) => setSay(e.target.value)} />
+                <button disabled={!say.trim()}>Send</button>
+              </form>
+            )}
+          </section>
+        )}
+
         <section className="panel log">
           <h2>Log</h2>
           {log.length === 0 && <p className="hint">Nothing yet.</p>}
@@ -793,6 +883,17 @@ export function Game({ names, update, hotseat = false, viewer, send, serverError
           </ul>
         </section>
 
+        {onSurrender && phase !== 'finished' && viewer && game.players[viewer]?.alive && (
+          <button
+            className="link quit"
+            onClick={() => {
+              if (window.confirm('Surrender? Your territories become neutral and you are out of this game.')) onSurrender();
+            }}
+          >
+            Surrender
+          </button>
+        )}
+        {rulesOpen && <Rules onClose={() => setRulesOpen(false)} />}
         <button
           className="link quit"
           onClick={() => {

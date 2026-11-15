@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LAND_EDGES,
   REGIONS,
+  SEAT_COMPENSATION,
   SEA_EDGES,
   TERRITORIES,
   TERRITORY_IDS,
@@ -37,9 +38,9 @@ describe('map', () => {
       ['north', 7, 4],
       ['gangetic', 6, 5],
       ['west', 5, 3],
-      ['central', 6, 6],
+      ['central', 6, 7],
       ['south', 8, 5],
-      ['northeast', 8, 4],
+      ['northeast', 8, 3],
     ]);
   });
 });
@@ -60,7 +61,8 @@ describe('setup (2.2)', () => {
       expect(counts).toEqual([...counts].sort((a, b) => a - b));
     }
     const s = started(n, 7);
-    for (const p of s.turnOrder) expect(armiesOf(s, p)).toBe(START[n]);
+    // Each seat after the first starts with SEAT_COMPENSATION more armies.
+    s.turnOrder.forEach((p, i) => expect(armiesOf(s, p)).toBe(START[n] + i * SEAT_COMPENSATION));
     expect(s.phase).toBe('reinforce');
     expect(s.round).toBe(1);
     expect(s.deck).toHaveLength(44);

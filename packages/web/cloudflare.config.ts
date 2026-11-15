@@ -13,6 +13,8 @@ export default defineConfig({
     exports: {
       // One Durable Object per game room, with SQLite-backed storage.
       GameRoom: exports.durableObject({ storage: 'sqlite' }),
+      // Counts room creations per visitor, to stop one address flooding the server with rooms.
+      RateLimiter: exports.durableObject({ storage: 'sqlite' }),
     },
   },
 });

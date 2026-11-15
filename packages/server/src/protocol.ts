@@ -1,7 +1,7 @@
 import type { Action, GameEvent, GameView, PlayerId, VictoryMode } from '@rajmandala/engine';
 
 /** Bumped whenever a message changes shape; an old client is told to reload. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export interface RoomOptions {
   victory: VictoryMode;
@@ -9,6 +9,17 @@ export interface RoomOptions {
   seats: number;
   /** Place starting armies at random once every capital is chosen. */
   autoPlace: boolean;
+  /** Seconds a player has for a turn before it is played for them; 0 means no limit. */
+  turnSeconds: number;
+}
+
+export const TURN_SECONDS = [0, 60, 180, 86400];
+
+export interface ChatLine {
+  from: PlayerId;
+  name: string;
+  text: string;
+  at: number;
 }
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished';
@@ -18,6 +29,8 @@ export interface MemberView {
   name: string;
   ready: boolean;
   online: boolean;
+  /** True for a computer player, and for a seat a bot is minding for an absent player. */
+  bot: boolean;
 }
 
 export interface RoomView {
@@ -34,6 +47,8 @@ export type ClientMsg =
   | { t: 'ready'; ready: boolean }
   | { t: 'options'; options: RoomOptions }
   | { t: 'kick'; id: PlayerId }
+  | { t: 'addBot' }
+  | { t: 'chat'; text: string }
   | { t: 'leave' }
   | { t: 'start' }
   | { t: 'rematch' }
@@ -49,6 +64,11 @@ export type ServerMsg =
       you: PlayerId | null;
       room: RoomView;
       game: GameView | null;
+      /** When the current turn is played automatically (server clock, ms), or null if untimed. */
+      deadline: number | null;
+      /** The server's clock when this was sent, so the client can correct its own. */
+      now: number;
+      chat: ChatLine[];
       /** What just happened, for animation and the log. Empty on a resync. */
       events: GameEvent[];
       /** The action this state answers, on the sender's own connection. */

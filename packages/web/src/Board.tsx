@@ -67,10 +67,11 @@ function battleBox(from: string, to: string): Box {
   return [x, y, w, h];
 }
 
-/** Eases the SVG viewBox towards a target box. */
-function useZoom(target: Box): Box {
+/** Eases the SVG viewBox towards a target box, or jumps there when `glide` is false (the player's own panning). */
+function useZoom(target: Box, glide: boolean): Box {
   const [box, setBox] = useState<Box>(target);
   const current = useRef<Box>(target);
+  const glided = useRef(false);
   const key = target.join(',');
   useEffect(() => {
     const start = current.current;
@@ -79,7 +80,10 @@ function useZoom(target: Box): Box {
       current.current = target;
       setBox(target);
     };
-    if (still) return land();
+    // Glide into a battle and back out of it; follow the player's fingers directly.
+    const animate = glide || glided.current;
+    glided.current = glide;
+    if (still || !animate) return land();
     const t0 = performance.now();
     let raf = 0;
     const step = (now: number) => {
@@ -100,6 +104,109 @@ function useZoom(target: Box): Box {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   return box;
+}
+
+const MIN_VIEW = W / 6;
+
+function clampView(v: Box): Box {
+  const w = Math.min(W, Math.max(MIN_VIEW, v[2]));
+  const h = (w * H) / W;
+  return [Math.max(0, Math.min(W - w, v[0])), Math.max(0, Math.min(H - h, v[1])), w, h];
+}
+
+/** Zooms a view by `factor` (below 1 zooms in) keeping the board point (cx, cy) where it is on screen. */
+function zoomAt(v: Box, factor: number, cx: number, cy: number): Box {
+  const w = Math.min(W, Math.max(MIN_VIEW, v[2] * factor));
+  const k = w / v[2];
+  return clampView([cx - (cx - v[0]) * k, cy - (cy - v[1]) * k, w, (w * H) / W]);
+}
+
+/**
+ * Lets the player move around the map: drag to pan, pinch or scroll to zoom.
+ * A drag is told apart from a click by distance, so tapping a territory still works.
+ */
+function usePanZoom(ref: React.RefObject<SVGSVGElement | null>, view: Box, setView: (v: Box) => void, off: boolean): void {
+  const latest = useRef(view);
+  latest.current = view;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || off) return;
+    const pointers = new Map<number, { x: number; y: number }>();
+    let start: { view: Box; x: number; y: number; spread: number } | null = null;
+    let dragged = false;
+
+    /** Board units per screen pixel, and where a screen point falls on the board. */
+    const scaleOf = (v: Box) => {
+      const r = el.getBoundingClientRect();
+      return Math.max(v[2] / r.width, v[3] / r.height);
+    };
+    const toBoard = (x: number, y: number, v: Box): [number, number] => {
+      const r = el.getBoundingClientRect();
+      const u = scaleOf(v);
+      return [v[0] + (x - r.left - (r.width - v[2] / u) / 2) * u, v[1] + (y - r.top - (r.height - v[3] / u) / 2) * u];
+    };
+    const centre = () => {
+      const ps = [...pointers.values()];
+      return { x: ps.reduce((n, p) => n + p.x, 0) / ps.length, y: ps.reduce((n, p) => n + p.y, 0) / ps.length };
+    };
+    const spread = () => {
+      const [a, b] = [...pointers.values()];
+      return b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+    };
+    const begin = () => {
+      start = pointers.size ? { view: latest.current, ...centre(), spread: spread() } : null;
+    };
+
+    const down = (e: PointerEvent) => {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) dragged = false;
+      begin();
+    };
+    const move = (e: PointerEvent) => {
+      if (!pointers.has(e.pointerId) || !start) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const c = centre();
+      if (!dragged && pointers.size === 1 && Math.hypot(c.x - start.x, c.y - start.y) < 8) return;
+      dragged = true;
+      const [bx, by] = toBoard(start.x, start.y, start.view);
+      const factor = pointers.size > 1 && start.spread > 0 ? start.spread / spread() : 1;
+      const zoomed = zoomAt(start.view, factor, bx, by);
+      // Then slide so the point first touched stays under the fingers.
+      const [nx, ny] = toBoard(c.x, c.y, zoomed);
+      setView(clampView([zoomed[0] + bx - nx, zoomed[1] + by - ny, zoomed[2], zoomed[3]]));
+    };
+    const up = (e: PointerEvent) => {
+      pointers.delete(e.pointerId);
+      begin();
+    };
+    const click = (e: MouseEvent) => {
+      if (!dragged) return;
+      dragged = false;
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const v = latest.current;
+      const [bx, by] = toBoard(e.clientX, e.clientY, v);
+      setView(zoomAt(v, Math.exp(e.deltaY * 0.0015), bx, by));
+    };
+
+    el.addEventListener('pointerdown', down);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    el.addEventListener('click', click, true);
+    el.addEventListener('wheel', wheel, { passive: false });
+    return () => {
+      el.removeEventListener('pointerdown', down);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      el.removeEventListener('click', click, true);
+      el.removeEventListener('wheel', wheel);
+    };
+  }, [ref, off, setView]);
 }
 
 /** Troop pieces in the owner's colour: a square is 10 armies, a triangle 5, a dot 1. */
@@ -127,7 +234,12 @@ function Pieces({ n, fill, y }: { n: number; fill: string; y: number }) {
 export default function Board(props: Props) {
   const { game, armies, colorOf, nameOf, clickable, targets, from, to, battle, onPick } = props;
   const monsoon = isMonsoon(game);
-  const box = useZoom(battle ? battleBox(battle.from, battle.to) : FULL);
+  const [view, setView] = useState<Box>(FULL);
+  const svg = useRef<SVGSVGElement>(null);
+  const box = useZoom(battle ? battleBox(battle.from, battle.to) : view, battle !== null);
+  usePanZoom(svg, view, setView, battle !== null);
+  const zoomed = view[2] < W - 1;
+  const step = (factor: number) => setView(zoomAt(view, factor, view[0] + view[2] / 2, view[1] + view[3] / 2));
   const capitalOf = new Map(Object.values(game.players).flatMap((p) => (p.capital ? [[p.capital, p.id] as const] : [])));
   const choosing = clickable.size > 0;
   const owner = (id: string) => game.territories[id].owner;
@@ -144,8 +256,23 @@ export default function Board(props: Props) {
     battle?.settled ? (id === battle.from ? battle.attackerLost : id === battle.to ? battle.defenderLost : 0) : 0;
 
   return (
+    <div className="boardwrap">
+      <div className="zoom" role="group" aria-label="Map zoom">
+        <button onClick={() => step(0.7)} disabled={view[2] <= MIN_VIEW + 1} aria-label="Zoom in">
+          +
+        </button>
+        <button onClick={() => step(1 / 0.7)} disabled={!zoomed} aria-label="Zoom out">
+          −
+        </button>
+        {zoomed && (
+          <button onClick={() => setView(FULL)} aria-label="Show the whole map">
+            ⤢
+          </button>
+        )}
+      </div>
     <svg
-      className={`board ${monsoon ? 'monsoon' : ''} ${battle ? 'fighting' : ''}`}
+      ref={svg}
+      className={`board ${monsoon ? 'monsoon' : ''} ${battle ? 'fighting' : ''} ${zoomed ? 'zoomed' : ''}`}
       viewBox={box.map((v) => Math.round(v * 10) / 10).join(' ')}
       role="group"
       aria-label="Map of India"
@@ -297,5 +424,6 @@ export default function Board(props: Props) {
         </g>
       )}
     </svg>
+    </div>
   );
 }

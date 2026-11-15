@@ -22,6 +22,8 @@ export const MONSOON_EVERY = 4;
 export const WILD_CARDS: readonly CardId[] = ['RATHA1', 'RATHA2'];
 
 const START_ARMIES: Record<number, number> = { 2: 40, 3: 35, 4: 30, 5: 25, 6: 20 };
+/** Extra starting armies per seat after the first. Set from bot simulations. */
+export const SEAT_COMPENSATION = 2;
 const TWO_PLAYER_TERRITORIES = 14;
 const NEUTRAL_ARMIES = 2;
 const SET_VALUES: Record<Suit, number> = { padati: 4, ashva: 6, gaja: 8 };
@@ -179,7 +181,8 @@ export function createGame(cfg: GameConfig): Result {
       cards: [],
       capital: null,
       alive: true,
-      setupArmies: START_ARMIES[n] - territoriesOf(s, id).length,
+      // Later seats get extra starting armies to offset the advantage of moving first.
+      setupArmies: START_ARMIES[n] - territoriesOf(s, id).length + s.turnOrder.indexOf(id) * SEAT_COMPENSATION,
       setupPlacement: null,
       surrendered: false,
     };

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, PlayerId, VictoryMode } from '@rajmandala/engine';
+import { TURN_SECONDS } from '@rajmandala/server';
 import type { RoomOptions, ServerMsg } from '@rajmandala/server';
 import { Game, VICTORY_TEXT, colorOf } from './App';
 import type { GameUpdate } from './App';
@@ -20,6 +21,8 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
   const [games, setGames] = useState(0);
   const sock = useRef<RoomSocket | null>(null);
   const wasLobby = useRef(true);
+  /** Server clock minus this device's clock, so deadlines count down correctly here. */
+  const skew = useRef(0);
 
   useEffect(() => {
     if (!entered) return;
@@ -38,6 +41,7 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
           // A fresh game gets a fresh screen, including after a rematch.
           if (msg.room.status !== 'lobby' && wasLobby.current) setGames((g) => g + 1);
           wasLobby.current = msg.room.status === 'lobby';
+          skew.current = msg.now - Date.now();
           setProblem(null);
           setState(msg);
         },
@@ -104,8 +108,8 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
   const send = sock.current!;
   const { room, you } = state;
   const isHost = you !== null && you === room.hostId;
-  const names = Object.fromEntries(room.members.map((m) => [m.id, m.name])) as Record<PlayerId, string>;
-  const offline = room.members.filter((m) => !m.online).map((m) => m.name);
+  const names = Object.fromEntries(room.members.map((m) => [m.id, m.bot ? `${m.name} (bot)` : m.name])) as Record<PlayerId, string>;
+  const offline = room.members.filter((m) => !m.online && !m.bot).map((m) => m.name);
   const link = (
     <p className={`net ${status}`} role="status">
       <span className="lamp" />
@@ -131,6 +135,10 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
       }}
       serverError={problem ? problem.text : undefined}
       banner={link}
+      deadline={state.deadline === null ? null : state.deadline - skew.current}
+      chat={state.chat}
+      onChat={(text) => send.send({ t: 'chat', text })}
+      onSurrender={() => send.action({ type: 'surrender' })}
       quit={{ label: 'Leave room', confirm: 'Leave this room? Your seat is kept and you can come back with the same link.', run: onExit }}
       finished={
         <div className="row">
@@ -155,7 +163,8 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
   const me = room.members.find((m) => m.id === you);
   const invite = `${location.origin}${location.pathname}#/r/${room.code}`;
   const others = room.members.filter((m) => m.id !== room.hostId);
-  const canStart = room.members.length >= 2 && others.every((m) => m.ready);
+  const canStart = room.members.length >= 2 && others.every((m) => m.ready || m.bot);
+  const timerText = (s: number) => (s === 0 ? 'Off' : s === 86400 ? '1 day' : `${s / 60} min`);
   const setOptions = (patch: Partial<RoomOptions>) => send.send({ t: 'options', options: { ...room.options, ...patch } });
 
   async function copy() {
@@ -200,8 +209,14 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
                 {m.name}
                 {m.id === you && ' (you)'}
               </span>
-              {m.id === room.hostId ? <span className="badge">Host</span> : <span className={`badge ${m.ready ? 'ok' : ''}`}>{m.ready ? 'Ready' : 'Not ready'}</span>}
-              {!m.online && <span className="badge">Offline</span>}
+              {m.bot ? (
+                <span className="badge">Computer</span>
+              ) : m.id === room.hostId ? (
+                <span className="badge">Host</span>
+              ) : (
+                <span className={`badge ${m.ready ? 'ok' : ''}`}>{m.ready ? 'Ready' : 'Not ready'}</span>
+              )}
+              {!m.online && !m.bot && <span className="badge">Offline</span>}
               {isHost && m.id !== you && (
                 <button className="link" onClick={() => send.send({ t: 'kick', id: m.id })}>
                   Remove
@@ -215,6 +230,9 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
             </li>
           ))}
         </ul>
+        {isHost && room.members.length < room.options.seats && (
+          <button onClick={() => send.send({ t: 'addBot' })}>Add a computer player</button>
+        )}
         {you === null && <p className="hint">The table is full, so you are watching. You will see the game when it starts.</p>}
       </section>
 
@@ -232,6 +250,17 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
                 ))}
               </div>
             </div>
+            <div className="row">
+              <span>Turn timer</span>
+              <div className="seg" role="group" aria-label="Turn timer">
+                {TURN_SECONDS.map((s) => (
+                  <button key={s} className={s === room.options.turnSeconds ? 'on' : ''} onClick={() => setOptions({ turnSeconds: s })}>
+                    {timerText(s)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="hint">When time runs out the turn is finished automatically. After three missed turns a computer player minds the seat.</p>
             {(Object.keys(VICTORY_TEXT) as VictoryMode[]).map((v) => (
               <label key={v} className="radio">
                 <input type="radio" name="victory" checked={room.options.victory === v} onChange={() => setOptions({ victory: v })} />
@@ -250,7 +279,7 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
         ) : (
           <p>
             <b>{VICTORY_TEXT[room.options.victory][0]}</b> — {VICTORY_TEXT[room.options.victory][1]}.{' '}
-            {room.options.autoPlace ? 'Starting armies are placed at random.' : 'Players place their own starting armies.'}
+            {room.options.autoPlace ? 'Starting armies are placed at random.' : 'Players place their own starting armies.'} Turn timer: {timerText(room.options.turnSeconds).toLowerCase()}.
           </p>
         )}
       </section>

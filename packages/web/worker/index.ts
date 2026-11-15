@@ -1,12 +1,20 @@
 import { DurableObject } from 'cloudflare:workers';
 import { DEFAULT_OPTIONS, RoomCore, newRoom, validOptions } from '@rajmandala/server';
-import type { ClientMsg, Outcome, RoomData, RoomOptions } from '@rajmandala/server';
+import type { Chance, ClientMsg, Outcome, RoomData, RoomOptions } from '@rajmandala/server';
 
 /** Room codes avoid characters that look alike (0/O, 1/I/L). */
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 const MAX_MESSAGE_BYTES = 16 * 1024;
 const STORAGE_KEY = 'room';
+const ROOMS_PER_HOUR = 20;
+const HOUR = 3_600_000;
+
+const chance: Chance = {
+  seed: () => crypto.getRandomValues(new Uint32Array(1))[0],
+  rand: Math.random,
+  now: Date.now,
+};
 
 interface Attachment {
   /** Stable id for this socket, kept across hibernation. */
@@ -69,11 +77,18 @@ export class GameRoom extends DurableObject {
     } catch {
       return ws.close(1007, 'Messages must be JSON');
     }
-    const out = this.core.handle(a.conn, msg, {
-      seed: () => crypto.getRandomValues(new Uint32Array(1))[0],
-      rand: Math.random,
-    });
-    await this.deliver(out);
+    await this.deliver(this.core.handle(a.conn, msg, chance));
+  }
+
+  /** Fires for a bot's next move, a turn running out of time, or an abandoned room. */
+  async alarm(): Promise<void> {
+    if (!this.core) return;
+    if (this.core.expired(Date.now())) {
+      await this.ctx.storage.deleteAll();
+      this.core = null;
+      return;
+    }
+    await this.deliver(this.core.tick(chance));
   }
 
   async webSocketClose(ws: WebSocket): Promise<void> {
@@ -109,6 +124,23 @@ export class GameRoom extends DurableObject {
         // The socket closed between the read and the send; its close handler tidies up.
       }
     }
+    // One alarm per room: whichever comes first of the next bot move, the turn deadline, or expiry.
+    const wake = core.nextWake();
+    const expiry = core.data.touched > 0 ? core.expiresAt() + 60_000 : null;
+    const next = Math.min(wake ?? Infinity, expiry ?? Infinity);
+    if (Number.isFinite(next)) await this.ctx.storage.setAlarm(Math.max(next, Date.now() + 50));
+  }
+}
+
+/** Remembers when one visitor last created rooms. */
+export class RateLimiter extends DurableObject {
+  async allow(limit: number, windowMs: number): Promise<boolean> {
+    const now = Date.now();
+    const hits = ((await this.ctx.storage.get<number[]>('hits')) ?? []).filter((t) => t > now - windowMs);
+    if (hits.length >= limit) return false;
+    hits.push(now);
+    await this.ctx.storage.put('hits', hits);
+    return true;
   }
 }
 
@@ -170,6 +202,10 @@ async function api(request: Request, url: URL, ctx: ExecutionContext): Promise<R
 
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
       const body = (await request.json().catch(() => null)) as { options?: unknown } | null;
+      const visitor = request.headers.get('CF-Connecting-IP') ?? 'local';
+      if (!(await ctx.exports.RateLimiter.getByName(visitor).allow(ROOMS_PER_HOUR, HOUR))) {
+        return new Response('Too many rooms created. Try again later.', { status: 429 });
+      }
       const options = validOptions(body?.options) ? body.options : DEFAULT_OPTIONS;
       for (let attempt = 0; attempt < 5; attempt++) {
         const code = randomCode();

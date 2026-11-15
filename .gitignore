@@ -4,3 +4,5 @@ dist
 dist-pages
 tools/map-build/build
 .DS_Store
+test-results
+playwright-report

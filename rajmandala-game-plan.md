@@ -19,9 +19,9 @@ Contents: [1. The map](#1-the-map) · [2. The rules](#2-the-rules) · [3. Archit
 | Himalayan North | 7 | 4 | Mountain defences in the back, an open southern front |
 | Gangetic Plain | 6 | 5 | Rich but exposed on almost every side |
 | Western Frontier | 5 | 3 | Small, cheap to take, sea link down the coast |
-| Central Heartland | 6 | 6 | Every territory is a border; hardest to hold |
+| Central Heartland | 6 | 7 | Every territory is a border; hardest to hold |
 | Deccan South | 8 | 5 | Large, with a narrow northern front and two sea flanks |
-| Northeast | 8 | 4 | One land gateway (Bengal); slow to conquer, easy to keep |
+| Northeast | 8 | 3 | One land gateway (Bengal); slow to conquer, easy to keep |
 | Island Outposts | 2 | +1 each | Not a region; each island held gives +1 army |
 
 ### 1.2 Territories
@@ -162,7 +162,7 @@ Default victory, **Samrajya**: at the end of your own turn, control **28 of the 
 
 1. Players: 2–6. Turn order is random.
 2. Territories are dealt out randomly and evenly; each gets 1 army. Leftover territories (4 players: 2, 5 players: 2) go to the players last in turn order.
-3. Starting armies per player, including the ones already placed: 3 players 35 · 4 players 30 · 5 players 25 · 6 players 20. With 2 players, each gets 40 and 14 territories; the other 14 are neutral with 2 armies each and never attack.
+3. Starting armies per player, including the ones already placed: 3 players 35 · 4 players 30 · 5 players 25 · 6 players 20. Each seat after the first gets 2 more armies than the seat before it, to offset the advantage of moving first (set from bot simulations: without it the first seat won 56% of two-player games). With 2 players, each gets 40 and 14 territories; the other 14 are neutral with 2 armies each and never attack.
 4. Each player secretly chooses one of their territories as their **capital**; capitals are revealed together.
 5. Players place remaining armies on their own territories, simultaneously and hidden, with a 90-second timer. Unplaced armies are spread automatically.
 
@@ -442,7 +442,7 @@ Some office and school networks block WebSockets. If three connection attempts f
 
 ## 6. Build plan
 
-**Status.** Built: phases 0–3, the multiplayer core of phase 4, and the rooms, codes, invite links, seats, ready-up, host controls and rematch of phase 5. Not yet built: turn timers, bots and bot takeover, the public room list, join approval, chat, QR codes, abuse limits, spectator polish, and the fault-injection tests against the real Durable Object (they run against the room logic today). Two deliberate differences from sections 4 and 5: a seat is owned by a secret key kept in the player's browser rather than a signed cookie, and the server sends each player a full snapshot on every change rather than only what changed.
+**Status.** Built: phases 0–4; rooms, codes, invite links, seats, ready-up, host controls, rematch and chat from phase 5; turn timers, auto-play, bot takeover, surrender, room expiry and a room-creation limit from phase 6; computer players (phase 7); a first balance pass from bot simulations (phase 8); a phone layout, map zoom, sound, turn alerts and a rules page (phase 9); and deployment (phase 10). Not yet built: the public room list, join approval, QR codes, optional sign-in, replays, a guided tutorial, Hindi strings, and fault-injection tests against the real Durable Object (they run against the room logic today). Two deliberate differences from sections 4 and 5: a seat is owned by a secret key kept in the player's browser rather than a signed cookie, and the server sends each player a full snapshot on every change rather than only what changed.
 
 Each phase ends with something playable or verifiable. Phases 1 and 2 can run in parallel; everything after depends on both.
 

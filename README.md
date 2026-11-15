@@ -30,14 +30,15 @@ npm run dev --workspace @rajmandala/web
 Open <http://localhost:5173>. The screen and the game server run together on that address. To try multiplayer alone, open a second tab with `?guest=2` before the `#`, for example `http://localhost:5173/?guest=2#/r/ROOMCODE`.
 
 ```bash
-npm test          # rules and room tests
+npm test               # rules and room tests
 npm run typecheck
+npm run test:browser   # plays the game in a browser (first: npx playwright install chromium)
 ```
 
 ## Deploying
 
 - **Game screen:** every push to `main` builds it and publishes it to GitHub Pages ([workflow](.github/workflows/pages.yml)). The repository variable `API_BASE` holds the game server's address.
-- **Game server:** from `packages/web`, run `npx cf deploy` (sign in first with `npx cf auth login`). The sites allowed to use the server are listed in `ALLOWED_ORIGINS` in [`cloudflare.config.ts`](packages/web/cloudflare.config.ts).
+- **Game server:** from `packages/web`, run `npx cf deploy` (sign in first with `npx cf auth login`). To deploy it automatically on every push instead, add the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` ([workflow](.github/workflows/deploy-server.yml)). The sites allowed to use the server are listed in `ALLOWED_ORIGINS` in [`cloudflare.config.ts`](packages/web/cloudflare.config.ts).
 
 ## Credits
 

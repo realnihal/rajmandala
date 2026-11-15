@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HotSeat } from './App';
 import { OnlineRoom } from './Online';
+import { Rules } from './Rules';
 import { apiUrl, saveName, savedName } from './net';
 
 const CODE = /^[A-Z0-9]{6}$/;
@@ -35,6 +36,7 @@ function Home() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [rules, setRules] = useState(false);
   const named = name.trim().length > 0;
   const joinCode = code.trim().toUpperCase();
 
@@ -45,6 +47,7 @@ function Home() {
     setError('');
     try {
       const res = await fetch(apiUrl('/api/rooms'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      if (res.status === 429) return setError('You have created a lot of rooms recently. Please try again later.');
       if (!res.ok) throw new Error();
       const { code: made } = (await res.json()) as { code: string };
       remember();
@@ -124,6 +127,11 @@ function Home() {
           Start a shared-screen game
         </button>
       </section>
+
+      <button className="link" onClick={() => setRules(true)}>
+        How to play
+      </button>
+      {rules && <Rules onClose={() => setRules(false)} />}
     </main>
   );
 }

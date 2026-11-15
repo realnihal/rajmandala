@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { applyAction, createGame, territoriesOf } from '@rajmandala/engine';
+import { applyAction, botAction, createGame, territoriesOf } from '@rajmandala/engine';
 import type { Action, GameState, PlayerId } from '@rajmandala/engine';
 import { botMove, lcg } from '../../engine/test/helpers';
 import { PROTOCOL_VERSION, RoomCore, newRoom } from '../src';
 import type { ClientMsg, Outcome, RoomData, ServerMsg } from '../src';
 
-const chance = { seed: () => 12345, rand: lcg(7) };
+let clock = 1_000_000;
+const chance = { seed: () => 12345, rand: lcg(7), now: () => clock };
 const key = (n: number) => `secret-key-number-${n}`.padEnd(24, 'x');
 type State = Extract<ServerMsg, { t: 'state' }>;
 
@@ -22,6 +23,7 @@ function table(data: RoomData = newRoom('ABCDEF')) {
       return core;
     },
     send: (conn: string, msg: ClientMsg) => deliver(core.handle(conn, msg, chance)),
+    tick: () => deliver(core.tick(chance)),
     join: (conn: string, n: number, name = `P${n}`) => deliver(core.handle(conn, { t: 'hello', v: PROTOCOL_VERSION, key: key(n), name }, chance)),
     drop: (conn: string) => deliver(core.disconnect(conn)),
     state: (conn: string) => last.get(conn) as State,
@@ -35,8 +37,8 @@ function table(data: RoomData = newRoom('ABCDEF')) {
   };
 }
 
-function startedTable(players = 3, autoPlace = true) {
-  const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: players, autoPlace }));
+function startedTable(players = 3, autoPlace = true, turnSeconds = 0) {
+  const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: players, autoPlace, turnSeconds }));
   for (let i = 1; i <= players; i++) t.join(`c${i}`, i);
   for (let i = 2; i <= players; i++) t.send(`c${i}`, { t: 'ready', ready: true });
   t.send('c1', { t: 'start' });
@@ -60,7 +62,7 @@ describe('lobby', () => {
   });
 
   it('turns extra arrivals into spectators when the table is full', () => {
-    const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: 2, autoPlace: true }));
+    const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: 2, autoPlace: true, turnSeconds: 0 }));
     t.join('a', 1);
     t.join('b', 2);
     t.join('c', 3);
@@ -78,7 +80,7 @@ describe('lobby', () => {
     const t = table();
     t.join('a', 1);
     t.join('b', 2);
-    const opts = { victory: 'capitals' as const, seats: 3, autoPlace: false };
+    const opts = { victory: 'capitals' as const, seats: 3, autoPlace: false, turnSeconds: 0 };
     expect(t.send('b', { t: 'options', options: opts }).send[0].msg).toMatchObject({ t: 'error' });
     t.send('a', { t: 'options', options: opts });
     expect(t.state('b').room.options).toEqual(opts);
@@ -244,5 +246,85 @@ describe('stability', () => {
     expect(s.room.status).toBe('lobby');
     expect(s.game).toBeNull();
     expect(s.room.members).toHaveLength(2);
+  });
+});
+
+describe('timers and bots', () => {
+  it('plays a turn for a player who runs out of time, and hands the seat to a bot after three', () => {
+    const t = startedTable(2, true, 60);
+    for (const p of ['p1', 'p2']) t.send(`c${p[1]}`, { t: 'action', id: `cap-${p}`, action: { type: 'chooseCapital', territory: territoriesOf(t.core.data.game!, p)[0] } });
+    const g = () => t.core.data.game!;
+    const slow = g().turnOrder[g().turnIndex];
+    const other = slow === 'p1' ? 'p2' : 'p1';
+    const start = clock;
+    expect(t.state('c1').deadline).toBe(start + 60_000);
+    expect(t.core.nextWake()).toBe(start + 60_000);
+
+    clock = start + 30_000;
+    expect(t.tick().persist).toBe(false); // not yet
+    clock = start + 60_000;
+    expect(t.tick().persist).toBe(true);
+    expect(g().turnOrder[g().turnIndex]).toBe(other);
+    expect(t.core.data.members.find((m) => m.id === slow)!.missed).toBe(1);
+
+    // The other player plays normally; the slow one misses twice more.
+    for (let miss = 2; miss <= 3; miss++) {
+      for (let i = 0; g().turnOrder[g().turnIndex] === other && i < 20; i++) {
+        t.send(`c${other[1]}`, { t: 'action', id: `o${miss}-${i}`, action: botAction(g(), other, chance.rand, 'pass')! });
+      }
+      clock = t.core.data.deadline!;
+      t.tick();
+    }
+    const seat = () => t.state('c1').room.members.find((m) => m.id === slow)!;
+    expect(seat().bot).toBe(true);
+    // A bot now plays the seat, one move per wake-up.
+    clock = t.core.nextWake()!;
+    expect(t.tick().persist).toBe(true);
+
+    // The player returns and takes the seat back.
+    t.join(`c${slow[1]}-back`, Number(slow[1]));
+    expect(seat().bot).toBe(false);
+    expect(t.core.data.members.find((m) => m.id === slow)!.missed).toBe(0);
+  });
+
+  it('lets the host add computer players, which play a whole game by themselves', () => {
+    const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: 3, autoPlace: true, turnSeconds: 0 }));
+    t.join('a', 1);
+    t.send('a', { t: 'addBot' });
+    t.send('a', { t: 'addBot' });
+    expect(t.state('a').room.members.map((m) => [m.bot, m.ready])).toEqual([[false, false], [true, true], [true, true]]);
+    expect(t.core.handle('a', { t: 'addBot' }, chance).send[0].msg).toMatchObject({ t: 'error' }); // the table is full
+    t.send('a', { t: 'start' });
+    expect(t.state('a').room.status).toBe('playing');
+    // The human surrenders; the two bots finish the game between them.
+    t.send('a', { t: 'action', id: 'quit', action: { type: 'surrender' } });
+    for (let i = 0; i < 20_000 && t.core.data.status === 'playing'; i++) {
+      clock = t.core.nextWake() ?? clock;
+      t.tick();
+    }
+    expect(t.core.data.status).toBe('finished');
+    expect(['p2', 'p3']).toContain(t.core.data.game!.winner);
+  });
+
+  it('carries chat between seated players, with a limit on speed', () => {
+    const t = startedTable(2);
+    t.join('watcher', 9);
+    t.send('c1', { t: 'chat', text: '  hello   there  ' });
+    expect(t.state('c2').chat).toMatchObject([{ from: 'p1', name: 'P1', text: 'hello there' }]);
+    expect(t.send('c1', { t: 'chat', text: 'again' }).send[0].msg).toMatchObject({ code: 'slow-down' });
+    expect(t.send('watcher', { t: 'chat', text: 'hi' }).send[0].msg).toMatchObject({ t: 'error' });
+    clock += 1000;
+    t.send('c1', { t: 'chat', text: 'x'.repeat(500) });
+    expect(t.state('c2').chat[1].text).toHaveLength(200);
+  });
+
+  it('expires only when empty and long idle', () => {
+    const t = startedTable(2);
+    const day = 86_400_000;
+    expect(t.core.expired(clock + 30 * day)).toBe(false); // people are connected
+    t.drop('c1');
+    t.drop('c2');
+    expect(t.core.expired(clock + day)).toBe(false); // a game in progress is kept for a week
+    expect(t.core.expired(clock + 8 * day)).toBe(true);
   });
 });
