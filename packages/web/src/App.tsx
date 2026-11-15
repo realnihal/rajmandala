@@ -1,0 +1,823 @@
+import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import {
+  SAMRAJYA_TARGET,
+  WILD_CARDS,
+  applyAction,
+  bestSet,
+  calcReinforcements,
+  createGame,
+  currentPlayer,
+  isConnected,
+  isMonsoon,
+  maxAttackDice,
+  neighbors,
+  randomPlacement,
+  setValue,
+  territoriesOf,
+  territory,
+  viewFor,
+} from '@rajmandala/engine';
+import type { Action, CardId, GameEvent, GameState, GameView, PlayerId, TerritoryId, VictoryMode } from '@rajmandala/engine';
+import Board from './Board';
+import { describe } from './describe';
+import { NEUTRAL_COLOR, PLAYER_COLORS } from './theme';
+
+type DiceEvent = Extract<GameEvent, { type: 'diceRolled' }>;
+interface Saved {
+  game: GameState;
+  names: Record<PlayerId, string>;
+  /** Place starting armies at random as soon as every capital is chosen. */
+  autoPlace?: boolean;
+}
+interface RollAnim {
+  rolls: DiceEvent[];
+  /** Which roll is on screen, and whether its dice have settled. */
+  i: number;
+  settled: boolean;
+  from: TerritoryId;
+  to: TerritoryId;
+  next: GameView;
+  lines: string[];
+}
+
+/** The latest picture of the game and what just happened, from the local engine or from the server. */
+export interface GameUpdate {
+  seq: number;
+  view: GameView;
+  events: GameEvent[];
+}
+const PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+
+const SAVE_KEY = 'rajmandala-hotseat-v1';
+export const VICTORY_TEXT: Record<VictoryMode, [string, string]> = {
+  samrajya: ['Samrajya', `Hold ${SAMRAJYA_TARGET} of 42 territories at the end of your turn`],
+  digvijaya: ['Digvijaya', 'Eliminate every other player'],
+  capitals: ['Capitals', 'Hold your own capital and two enemy capitals at the end of your turn'],
+};
+const SUIT_LABEL: Record<string, string> = { padati: 'Padati', ashva: 'Ashva', gaja: 'Gaja' };
+
+function load(): Saved | null {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    return raw ? (JSON.parse(raw) as Saved) : null;
+  } catch {
+    return null;
+  }
+}
+function save(data: Saved | null): void {
+  try {
+    if (data) localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    else localStorage.removeItem(SAVE_KEY);
+  } catch {
+    /* storage unavailable: the game still works, it just will not survive a refresh */
+  }
+}
+
+const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)];
+export const colorOf = (owner: string) => (owner === 'neutral' ? NEUTRAL_COLOR : PLAYER_COLORS[Number(owner.slice(1)) - 1]);
+
+/** A game on one shared screen: the rules run in this browser and every hand is visible to the screen. */
+export function HotSeat({ onExit }: { onExit: () => void }) {
+  const [saved, setSaved] = useState<Saved | null>(load);
+  const [update, setUpdate] = useState<GameUpdate | null>(() => {
+    const s = load();
+    return s ? { seq: 0, view: viewFor(s.game, null, { revealAll: true }), events: [] } : null;
+  });
+
+  if (!saved || !update) {
+    return (
+      <NewGame
+        onBack={onExit}
+        onStart={(s) => {
+          save(s);
+          setSaved(s);
+          setUpdate({ seq: 0, view: viewFor(s.game, null, { revealAll: true }), events: [] });
+        }}
+      />
+    );
+  }
+
+  function send(player: PlayerId, action: Action): string | null {
+    try {
+      const r = applyAction(saved!.game, player, action);
+      let next = r.state;
+      let events = r.events;
+      if (next.phase === 'setup-place' && saved!.autoPlace) {
+        for (const id of next.turnOrder) {
+          if (!next.players[id].alive) continue;
+          const placed = applyAction(next, id, { type: 'setupPlace', placements: randomPlacement(next, id, next.players[id].setupArmies) });
+          next = placed.state;
+          events = [...events, ...placed.events];
+        }
+      }
+      const s = { ...saved!, game: next };
+      save(s);
+      setSaved(s);
+      setUpdate((u) => ({ seq: (u?.seq ?? 0) + 1, view: viewFor(next, null, { revealAll: true }), events }));
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : 'That move is not allowed';
+    }
+  }
+
+  const quit = () => {
+    save(null);
+    setSaved(null);
+    setUpdate(null);
+  };
+  return (
+    <Game
+      key={saved.game.turnOrder.join() + saved.game.rng}
+      names={saved.names}
+      update={update}
+      hotseat
+      viewer={null}
+      send={send}
+      quit={{ label: 'Abandon game', confirm: 'Abandon this game and start a new one?', run: quit }}
+      finished={
+        <button className="primary" onClick={quit}>
+          New game
+        </button>
+      }
+    />
+  );
+}
+
+// ------------------------------------------------------------- new game
+
+function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () => void }) {
+  const [count, setCount] = useState(3);
+  const [names, setNames] = useState(['Asha', 'Bilal', 'Chitra', 'Dev', 'Esha', 'Farhan']);
+  const [victory, setVictory] = useState<VictoryMode>('samrajya');
+  const [quick, setQuick] = useState(true);
+
+  function start() {
+    const ids = Array.from({ length: count }, (_, i) => `p${i + 1}`);
+    const nameMap = Object.fromEntries(ids.map((id, i) => [id, names[i].trim() || `Player ${i + 1}`]));
+    const seed = crypto.getRandomValues(new Uint32Array(1))[0];
+    const game = createGame({ players: ids, seed, victory }).state;
+    onStart({ game, names: nameMap, autoPlace: quick });
+  }
+
+  return (
+    <main className="newgame">
+      <button className="link" onClick={onBack}>
+        ← Back
+      </button>
+      <h1>Play on this screen</h1>
+      <p className="lede">2 to 6 players take turns on one device.</p>
+
+      <section>
+        <h2>Players</h2>
+        <div className="seg" role="group" aria-label="Number of players">
+          {[2, 3, 4, 5, 6].map((n) => (
+            <button key={n} className={n === count ? 'on' : ''} onClick={() => setCount(n)}>
+              {n}
+            </button>
+          ))}
+        </div>
+        <div className="names">
+          {names.slice(0, count).map((n, i) => (
+            <label key={i}>
+              <span className="dot" style={{ background: PLAYER_COLORS[i].fill }} />
+              <input
+                value={n}
+                maxLength={16}
+                aria-label={`Player ${i + 1} name`}
+                onChange={(e) => setNames(names.map((x, j) => (j === i ? e.target.value : x)))}
+              />
+            </label>
+          ))}
+        </div>
+        {count === 2 && <p className="hint">With two players, a third of the map starts as neutral garrisons.</p>}
+      </section>
+
+      <section>
+        <h2>How to win</h2>
+        {(Object.keys(VICTORY_TEXT) as VictoryMode[]).map((m) => (
+          <label key={m} className="radio">
+            <input type="radio" name="victory" checked={victory === m} onChange={() => setVictory(m)} />
+            <span>
+              <b>{VICTORY_TEXT[m][0]}</b> — {VICTORY_TEXT[m][1]}
+            </span>
+          </label>
+        ))}
+      </section>
+
+      <section>
+        <h2>Setup</h2>
+        <p className="hint">Each player takes a turn to choose a capital. The game begins once all capitals are chosen.</p>
+        <label className="radio">
+          <input type="checkbox" checked={quick} onChange={(e) => setQuick(e.target.checked)} />
+          <span>
+            <b>Quick setup</b> — once every capital is chosen, place starting armies at random and begin
+          </span>
+        </label>
+      </section>
+
+      <button className="primary big" onClick={start}>
+        Start game
+      </button>
+    </main>
+  );
+}
+
+// ----------------------------------------------------------------- game
+
+export interface GameProps {
+  names: Record<PlayerId, string>;
+  update: GameUpdate;
+  /** True when everyone shares this screen: whoever must act uses the controls. */
+  hotseat?: boolean;
+  /** The seat this screen controls in an online game; null for a spectator. */
+  viewer: PlayerId | null;
+  /** Submits an action. Returns an error message if it was refused on the spot. */
+  send: (player: PlayerId, action: Action) => string | null;
+  /** An error that arrived later, from the server. */
+  serverError?: string;
+  quit: { label: string; confirm: string; run: () => void };
+  /** Shown in the result panel when the game is over. */
+  finished: ReactNode;
+  /** Extra content at the top of the side panel, such as connection status. */
+  banner?: ReactNode;
+}
+
+export function Game({ names, update, hotseat = false, viewer, send, serverError, quit, finished, banner }: GameProps) {
+  const [game, setGame] = useState(update.view);
+  const [log, setLog] = useState<string[]>([]);
+  const [sel, setSel] = useState<{ from?: TerritoryId; to?: TerritoryId }>({});
+  const [draft, setDraft] = useState<Record<TerritoryId, number>>({});
+  const [rolls, setRolls] = useState<DiceEvent[]>([]);
+  const [amount, setAmount] = useState(1);
+  const [picked, setPicked] = useState<CardId[]>([]);
+  const [showCards, setShowCards] = useState(!hotseat);
+  const [error, setError] = useState('');
+  const [anim, setAnim] = useState<RollAnim | null>(null);
+  const lastSeq = useRef(update.seq);
+
+  const name = (id: string) => (id === 'neutral' ? 'the neutral garrison' : (names[id] ?? id));
+  const players = game.turnOrder.map((id) => game.players[id]);
+  const phase = game.phase;
+  const inSetup = phase === 'setup-capital' || phase === 'setup-place';
+  const pending = (p: (typeof players)[number]) => p.alive && (phase === 'setup-capital' ? !p.capitalChosen : !p.setupSubmitted);
+  // Who must act now. During setup everyone online chooses at once; on a shared screen they take turns.
+  const actor: PlayerId | null =
+    phase === 'finished'
+      ? null
+      : inSetup
+        ? hotseat
+          ? (players.find(pending)?.id ?? null)
+          : viewer && pending(game.players[viewer])
+            ? viewer
+            : null
+        : currentPlayer(game);
+  const canAct = actor !== null && (hotseat || actor === viewer) && !anim;
+  const handOwner = hotseat ? actor : viewer;
+  const me = handOwner ? game.players[handOwner] : null;
+  const hand = me?.cards ?? [];
+  const lead = phase === 'finished' ? game.winner : (actor ?? viewer);
+  const monsoon = isMonsoon(game);
+  const armiesAt = (t: TerritoryId) => game.territories[t].armies;
+  const mine = (t: TerritoryId) => actor !== null && game.territories[t].owner === actor;
+
+  useEffect(() => {
+    setSel({});
+    setPicked([]);
+    setError('');
+    if (phase === 'occupy' && game.pendingOccupy) setAmount(armiesAt(game.pendingOccupy.from) - 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actor, phase]);
+  useEffect(() => {
+    setShowCards(!hotseat);
+    setDraft({});
+    setRolls([]);
+  }, [actor, hotseat]);
+  useEffect(() => setError(serverError ?? ''), [serverError]);
+
+  function commit(next: GameView, lines: string[]) {
+    setGame(next);
+    if (lines.length) setLog((prev) => [...[...lines].reverse(), ...prev].slice(0, 200));
+  }
+
+  // A new update arrived. Battles are played out before the board catches up.
+  useEffect(() => {
+    if (update.seq === lastSeq.current) return;
+    lastSeq.current = update.seq;
+    const lines = update.events.map((e) => describe(e, name)).filter((x): x is string => x !== null);
+    const dice = update.events.filter((e): e is DiceEvent => e.type === 'diceRolled');
+    const carried = anim ? anim.lines : [];
+    if (dice.length) {
+      if (carried.length) setLog((prev) => [...[...carried].reverse(), ...prev].slice(0, 200));
+      setAnim({ rolls: dice, i: 0, settled: false, from: dice[0].from, to: dice[0].to, next: update.view, lines });
+    } else {
+      setAnim(null);
+      commit(update.view, [...carried, ...lines]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [update]);
+
+  function act(action: Action): boolean {
+    if (!actor) return false;
+    const refused = send(actor, action);
+    setError(refused ?? '');
+    return refused === null;
+  }
+
+  function finishRoll(a: RollAnim) {
+    setAnim(null);
+    setRolls(a.rolls);
+    commit(a.next, a.lines);
+    if (a.next.phase === 'attack' && a.next.territories[a.from].armies < 2) setSel({});
+  }
+
+  // One roll at a time: the dice tumble, settle, and the armies on the board change.
+  useEffect(() => {
+    if (!anim) return;
+    const blitz = anim.rolls.length > 1;
+    const wait = anim.settled ? (blitz ? 700 : 1100) : blitz ? 800 : 1400;
+    const id = setTimeout(() => {
+      if (!anim.settled) setAnim({ ...anim, settled: true });
+      else if (anim.i < anim.rolls.length - 1) setAnim({ ...anim, i: anim.i + 1, settled: false });
+      else finishRoll(anim);
+    }, wait);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anim]);
+
+  const seen = anim ? anim.rolls.slice(0, anim.i + (anim.settled ? 1 : 0)) : [];
+  const armiesShown = (t: TerritoryId) =>
+    armiesAt(t) -
+    (anim && t === anim.from ? seen.reduce((n, r) => n + r.attackerLost, 0) : 0) -
+    (anim && t === anim.to ? seen.reduce((n, r) => n + r.defenderLost, 0) : 0);
+
+  // ---- what can be clicked on the map right now
+  const forcedTrade = canAct && phase === 'attack' && hand.length >= 5;
+  const placing = (phase === 'reinforce' || phase === 'attack') && game.pendingReinforcements > 0 && !forcedTrade;
+  const draftTotal = Object.values(draft).reduce((a, b) => a + b, 0);
+  const setupLeft = (me?.setupArmies ?? 0) - draftTotal;
+  const own = canAct ? territoriesOf(game, actor!) : [];
+  let clickable = new Set<TerritoryId>();
+  let targets = new Set<TerritoryId>();
+  if (!canAct) {
+    // Not this screen's move: nothing on the map responds.
+  } else if (phase === 'setup-capital' || phase === 'setup-place' || placing) {
+    clickable = new Set(own);
+  } else if (phase === 'attack' && !forcedTrade) {
+    const foes = (t: TerritoryId) => neighbors(t, !monsoon).filter((n) => !mine(n));
+    clickable = new Set(own.filter((t) => armiesAt(t) >= 2 && foes(t).length > 0));
+    if (sel.from) targets = new Set(foes(sel.from));
+    targets.forEach((t) => clickable.add(t));
+  } else if (phase === 'fortify') {
+    clickable = new Set(own.filter((t) => armiesAt(t) > 1));
+    if (sel.from) targets = new Set(own.filter((t) => t !== sel.from && isConnected(game, actor!, sel.from!, t)));
+    targets.forEach((t) => clickable.add(t));
+  }
+
+  function onPick(t: TerritoryId, many: boolean) {
+    if (phase === 'setup-capital') return void act({ type: 'chooseCapital', territory: t });
+    if (phase === 'setup-place') {
+      const n = Math.min(many ? 5 : 1, setupLeft);
+      if (n > 0) setDraft({ ...draft, [t]: (draft[t] ?? 0) + n });
+      return;
+    }
+    if (placing) {
+      act({ type: 'place', territory: t, armies: Math.min(many ? 5 : 1, game.pendingReinforcements) });
+      return setSel({ from: t });
+    }
+    if (sel.from && targets.has(t)) {
+      if (phase === 'fortify') setAmount(armiesAt(sel.from) - 1);
+      return setSel({ from: sel.from, to: t });
+    }
+    setSel(t === sel.from ? {} : { from: t });
+  }
+
+  function attack(dice: number, blitz: boolean) {
+    const { from, to } = sel;
+    if (!from || !to) return;
+    act({ type: 'attack', from, to, dice, blitz });
+  }
+
+  // ---- the panel for the current phase
+  function controls() {
+    if (phase === 'finished') return null;
+    if (anim) {
+      return (
+        <>
+          <p>
+            <b>{territory(anim.from).name}</b> attacks <b>{territory(anim.to).name}</b>
+            {anim.rolls.length > 1 && ` — roll ${anim.i + 1} of ${anim.rolls.length}`}
+          </p>
+          <button onClick={() => finishRoll(anim)}>Skip</button>
+        </>
+      );
+    }
+    if (!canAct) {
+      if (inSetup) {
+        const waiting = players.filter(pending).map((p) => name(p.id));
+        return <p>Waiting for {waiting.join(', ') || 'the game to begin'} to {phase === 'setup-capital' ? 'choose a capital' : 'place armies'}.</p>;
+      }
+      return <p>{viewer ? `Waiting for ${name(actor!)} to play.` : `${name(actor!)} is playing.`}</p>;
+    }
+    if (phase === 'setup-capital') {
+      const alive = players.filter((p) => p.alive);
+      return (
+        <>
+          <p className="hint">
+            {hotseat
+              ? `Capital ${alive.filter((p) => p.capitalChosen).length + 1} of ${alive.length}`
+              : 'Everyone chooses at the same time. Capitals are revealed together.'}
+          </p>
+          <p>
+            <b>{name(actor!)}</b>, choose your capital: click one of your territories. It gives +1 army each turn and its
+            defenders re-roll 1s.
+          </p>
+          <button onClick={() => onPick(pick(own), false)}>Choose at random</button>
+        </>
+      );
+    }
+    if (phase === 'setup-place') {
+      return (
+        <>
+          <p>
+            Place your starting armies: <b>{setupLeft}</b> left. Click a territory to add 1, Shift-click to add 5.
+          </p>
+          <div className="row">
+            <button disabled={setupLeft === 0} onClick={() => setDraft(randomPlacement(game, actor!, setupLeft, Math.random, draft))}>
+              Spread the rest
+            </button>
+            <button disabled={draftTotal === 0} onClick={() => setDraft({})}>
+              Reset
+            </button>
+            <button className="primary" disabled={setupLeft !== 0} onClick={() => act({ type: 'setupPlace', placements: draft })}>
+              Confirm
+            </button>
+          </div>
+        </>
+      );
+    }
+    if (forcedTrade) return <p>You hold {hand.length} cards. Trade a set below before you continue.</p>;
+    if (placing) {
+      const b = calcReinforcements(game, actor!);
+      return (
+        <>
+          <p>
+            Place armies: <b>{game.pendingReinforcements}</b> left. Click a territory to add 1, Shift-click to add 5.
+          </p>
+          {phase === 'reinforce' && (
+            <p className="hint">
+              This turn: {b.territories} for territories
+              {b.regions > 0 && `, ${b.regions} for regions`}
+              {b.outposts > 0 && `, ${b.outposts} for outposts`}
+              {b.capital > 0 && ', 1 for your capital'}.
+            </p>
+          )}
+          {sel.from && mine(sel.from) && (
+            <button onClick={() => act({ type: 'place', territory: sel.from!, armies: game.pendingReinforcements })}>
+              Place all {game.pendingReinforcements} on {territory(sel.from).name}
+            </button>
+          )}
+        </>
+      );
+    }
+    if (phase === 'reinforce') {
+      return (
+        <>
+          <p>All armies placed. Trade cards if you wish, then attack.</p>
+          <button className="primary" onClick={() => act({ type: 'endPhase' })}>
+            Go to attack
+          </button>
+        </>
+      );
+    }
+    if (phase === 'attack') {
+      const { from, to } = sel;
+      const max = from && to ? Math.min(maxAttackDice(game, to), armiesAt(from) - 1) : 0;
+      return (
+        <>
+          {!from && <p>Click one of your territories with 2 or more armies, then an enemy next to it.</p>}
+          {from && !to && <p>Attacking from {territory(from).name}. Now click a highlighted enemy territory.</p>}
+          {from && to && (
+            <>
+              <p>
+                <b>{territory(from).name}</b> ({armiesAt(from)}) attacks <b>{territory(to).name}</b> ({armiesAt(to)}),
+                held by {name(game.territories[to].owner)}.
+                {maxAttackDice(game, to) < 3 && (
+                  <span className="hint">
+                    {' '}
+                    At most {maxAttackDice(game, to)} {maxAttackDice(game, to) === 1 ? 'die' : 'dice'}
+                    {territory(to).mountain ? ' into mountains' : ''}
+                    {monsoon ? ' in the Monsoon' : ''}.
+                  </span>
+                )}
+              </p>
+              <div className="row">
+                {[1, 2, 3]
+                  .filter((d) => d <= max)
+                  .map((d) => (
+                    <button key={d} onClick={() => attack(d, false)}>
+                      Roll {d}
+                    </button>
+                  ))}
+                <button className="primary" disabled={max < 1} onClick={() => attack(max, true)}>
+                  Blitz
+                </button>
+              </div>
+            </>
+          )}
+          <button onClick={() => act({ type: 'endPhase' })}>End attacks</button>
+        </>
+      );
+    }
+    if (phase === 'occupy' && game.pendingOccupy) {
+      const o = game.pendingOccupy;
+      const max = armiesAt(o.from) - 1;
+      const n = Math.max(o.min, Math.min(max, amount));
+      return (
+        <>
+          <p>
+            You took <b>{territory(o.to).name}</b>. Move armies in from {territory(o.from).name}: <b>{n}</b>
+            {o.capitalBonus > 0 && ` (+${o.capitalBonus} for the capital)`}
+          </p>
+          <input type="range" min={o.min} max={max} value={n} aria-label="Armies to move in" onChange={(e) => setAmount(+e.target.value)} />
+          <div className="row">
+            {o.min < n && <button onClick={() => act({ type: 'occupy', armies: o.min })}>Move {o.min}</button>}
+            <button className="primary" onClick={() => act({ type: 'occupy', armies: n })}>
+              Move {n}
+            </button>
+          </div>
+        </>
+      );
+    }
+    // fortify
+    const { from, to } = sel;
+    const max = from ? armiesAt(from) - 1 : 0;
+    const n = Math.max(1, Math.min(max, amount));
+    return (
+      <>
+        {!from && <p>Optional: move armies once between two of your connected territories. Click the one to move from.</p>}
+        {from && !to && <p>Moving from {territory(from).name}. Click a highlighted territory to move to.</p>}
+        {from && to && (
+          <>
+            <p>
+              Move <b>{n}</b> from {territory(from).name} to {territory(to).name}.
+            </p>
+            <input type="range" min={1} max={max} value={n} aria-label="Armies to move" onChange={(e) => setAmount(+e.target.value)} />
+            <button className="primary" onClick={() => act({ type: 'fortify', from, to, armies: n })}>
+              Move and end turn
+            </button>
+          </>
+        )}
+        <button onClick={() => act({ type: 'endPhase' })}>End turn without moving</button>
+      </>
+    );
+  }
+
+  const canTrade = !anim && (phase === 'reinforce' || forcedTrade);
+  const tradeValue = picked.length === 3 ? setValue(picked) : null;
+  const best = bestSet(hand);
+  const shownRoll = anim ? anim.rolls[anim.i] : rolls[rolls.length - 1];
+  const tumbling = anim !== null && !anim.settled;
+  const tally = anim ? seen : rolls;
+  const steps = ['reinforce', 'attack', 'fortify'];
+  const stepNow = phase === 'occupy' ? 'attack' : phase;
+
+  return (
+    <div className="game">
+      <div className="mapwrap">
+        <Board
+          game={game}
+          armies={(t) => armiesShown(t) + (phase === 'setup-place' && canAct && mine(t) ? (draft[t] ?? 0) : 0)}
+          colorOf={colorOf}
+          nameOf={name}
+          clickable={phase === 'finished' || anim ? new Set() : clickable}
+          targets={targets}
+          from={anim ? anim.from : phase === 'occupy' ? game.pendingOccupy?.from : sel.from}
+          to={anim ? anim.to : phase === 'occupy' ? game.pendingOccupy?.to : sel.to}
+          battle={
+            anim
+              ? {
+                  from: anim.from,
+                  to: anim.to,
+                  roll: anim.i,
+                  settled: anim.settled,
+                  attackerLost: anim.rolls[anim.i].attackerLost,
+                  defenderLost: anim.rolls[anim.i].defenderLost,
+                }
+              : null
+          }
+          onPick={onPick}
+        />
+        <div className="legend">
+          <span className="chip">
+            Troops: <b>■</b> 10 <b>▲</b> 5 <b>●</b> 1
+          </span>
+          <span className="chip">Tower: a capital, in its founder's colour</span>
+          <span className="chip">Peak: mountain, attackers roll one die fewer</span>
+          <span className="chip">┄ sea route</span>
+          <span className="credit">
+            Boundaries: <a href="https://github.com/datameet/maps">DataMeet India community</a>, CC BY 2.5 IN
+          </span>
+        </div>
+      </div>
+
+      <aside className="side">
+        {banner}
+        <header className="turn" style={{ borderColor: colorOf(lead ?? 'neutral').fill }}>
+          <div className="who">
+            <span className="dot big" style={{ background: colorOf(lead ?? 'neutral').fill }} />
+            <h1>
+              {phase === 'finished'
+                ? `${name(game.winner!)} wins`
+                : actor === null
+                  ? 'Choosing capitals'
+                  : !hotseat && actor === viewer
+                    ? 'Your turn'
+                    : name(actor)}
+            </h1>
+          </div>
+          <div className="meta">
+            {inSetup ? 'Setup' : `Round ${game.round}`}
+            {monsoon && <span className="badge monsoon">Monsoon</span>}
+            {!inSetup && !monsoon && (game.round + 1) % 4 === 0 && <span className="badge">Monsoon next round</span>}
+          </div>
+          {!inSetup && phase !== 'finished' && (
+            <ol className="steps">
+              {steps.map((s) => (
+                <li key={s} className={s === stepNow ? 'now' : ''}>
+                  {s}
+                </li>
+              ))}
+            </ol>
+          )}
+        </header>
+
+        {phase === 'finished' ? (
+          <section className="panel">
+            <p>
+              {VICTORY_TEXT[game.victory][0]} victory after {game.round} rounds.
+            </p>
+            {finished}
+          </section>
+        ) : (
+          <section className="panel controls">
+            {controls()}
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
+          </section>
+        )}
+
+        {shownRoll && (
+          <section className="panel dice">
+            <div className="dicerow">
+              <span className="lbl">Attack</span>
+              {shownRoll.attack.map((d, i) => (
+                <Die key={i} value={d} rolling={tumbling} lost={i < shownRoll.defence.length && d <= shownRoll.defence[i]} />
+              ))}
+            </div>
+            <div className="dicerow">
+              <span className="lbl">Defence</span>
+              {shownRoll.defence.map((d, i) => (
+                <Die key={i} value={d} rolling={tumbling} defence lost={i < shownRoll.attack.length && shownRoll.attack[i] > d} />
+              ))}
+              {!tumbling && shownRoll.rerolled && <span className="hint">capital re-roll</span>}
+            </div>
+            <p className="hint" aria-live="polite">
+              {tumbling && tally.length === 0
+                ? 'Rolling…'
+                : `${tally.length > 1 || (anim && anim.rolls.length > 1) ? `After ${tally.length} ${tally.length === 1 ? 'roll' : 'rolls'}: ` : ''}attacker lost ${tally.reduce((n, r) => n + r.attackerLost, 0)}, defender lost ${tally.reduce((n, r) => n + r.defenderLost, 0)}.`}
+            </p>
+          </section>
+        )}
+
+        {!inSetup && phase !== 'finished' && me && (
+          <section className="panel">
+            <div className="row between">
+              <h2>
+                {hotseat ? `${name(me.id)}'s cards` : 'Your cards'} ({hand.length})
+              </h2>
+              <button className="link" onClick={() => setShowCards(!showCards)}>
+                {showCards ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {showCards && hand.length === 0 && <p className="hint">No cards yet. Capture a territory to draw one at the end of your turn.</p>}
+            {showCards && hand.length > 0 && (
+              <>
+                <div className="cards">
+                  {hand.map((c) => {
+                    const wild = WILD_CARDS.includes(c);
+                    const on = picked.includes(c);
+                    return (
+                      <button
+                        key={c}
+                        className={`card ${wild ? 'ratha' : territory(c).suit} ${on ? 'on' : ''}`}
+                        aria-pressed={on}
+                        disabled={!canTrade}
+                        onClick={() => setPicked(on ? picked.filter((x) => x !== c) : picked.length < 3 ? [...picked, c] : picked)}
+                      >
+                        <b>{wild ? 'Ratha' : SUIT_LABEL[territory(c).suit]}</b>
+                        <span>{wild ? 'wild' : territory(c).name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {canTrade ? (
+                  <div className="row">
+                    <button disabled={!best} onClick={() => best && setPicked(best)}>
+                      Pick best set
+                    </button>
+                    <button
+                      className="primary"
+                      disabled={tradeValue === null}
+                      onClick={() => {
+                        if (act({ type: 'trade', cards: picked as [CardId, CardId, CardId] })) setPicked([]);
+                      }}
+                    >
+                      {tradeValue !== null ? `Trade for ${tradeValue}` : picked.length === 3 ? 'Not a set' : 'Trade'}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="hint">Cards are traded at the start of your turn.</p>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
+        <section className="panel">
+          <h2>{VICTORY_TEXT[game.victory][0]}</h2>
+          <p className="hint">{VICTORY_TEXT[game.victory][1]}.</p>
+          <table className="players">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th title="Territories">Terr.</th>
+                <th>Armies</th>
+                <th>Cards</th>
+              </tr>
+            </thead>
+            <tbody>
+              {players.map((p) => {
+                const held = territoriesOf(game, p.id);
+                return (
+                  <tr key={p.id} className={`${p.alive ? '' : 'out'} ${p.id === actor ? 'active' : ''}`}>
+                    <td>
+                      <span className="dot" style={{ background: colorOf(p.id).fill }} />
+                      {name(p.id)}
+                      {p.capital && !inSetup && game.territories[p.capital].owner === p.id && <span title="Holds own capital"> ♜</span>}
+                    </td>
+                    <td>{held.length}</td>
+                    <td>{held.reduce((n, t) => n + armiesAt(t), 0)}</td>
+                    <td>{p.cardCount}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+
+        <section className="panel log">
+          <h2>Log</h2>
+          {log.length === 0 && <p className="hint">Nothing yet.</p>}
+          <ul>
+            {log.slice(0, 40).map((l, i) => (
+              <li key={log.length - i}>{l}</li>
+            ))}
+          </ul>
+        </section>
+
+        <button
+          className="link quit"
+          onClick={() => {
+            if (phase === 'finished' || window.confirm(quit.confirm)) quit.run();
+          }}
+        >
+          {quit.label}
+        </button>
+      </aside>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------- dice
+
+/** A die drawn with pips. While rolling it tumbles through random faces, then settles on its value. */
+function Die({ value, rolling, defence, lost }: { value: number; rolling: boolean; defence?: boolean; lost: boolean }) {
+  const [face, setFace] = useState(value);
+  useEffect(() => {
+    if (!rolling) return setFace(value);
+    const id = setInterval(() => setFace(1 + Math.floor(Math.random() * 6)), 90);
+    return () => clearInterval(id);
+  }, [rolling, value]);
+  const cls = ['die', defence ? 'def' : '', rolling ? 'rolling' : lost ? 'lost' : 'won'].join(' ');
+  return (
+    <span className={cls} role="img" aria-label={rolling ? 'rolling' : `${value}${lost ? ', lost' : ''}`}>
+      {Array.from({ length: 9 }, (_, i) => (
+        <i key={i} className={PIPS[face].includes(i) ? 'pip' : ''} />
+      ))}
+    </span>
+  );
+}

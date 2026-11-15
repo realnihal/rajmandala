@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "jsx": "react-jsx",
+    "types": [
+      "vite/client"
+    ],
+    "paths": {
+      "@rajmandala/engine": [
+        "../engine/src/index.ts"
+      ],
+      "@rajmandala/server": [
+        "../server/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "src"
+  ]
+}

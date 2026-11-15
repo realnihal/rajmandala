@@ -1,0 +1,13 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": [],
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@rajmandala/engine": ["../../engine/src/index.ts"],
+      "@rajmandala/server": ["../../server/src/index.ts"]
+    }
+  },
+  "include": [".", "../.cloudflare/types"]
+}

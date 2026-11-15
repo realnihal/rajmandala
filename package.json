@@ -1,0 +1,17 @@
+{
+  "name": "rajmandala",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces"
+  },
+  "devDependencies": {
+    "mapshaper": "^0.7.101",
+    "typescript": "^5.6.0",
+    "vitest": "latest",
+    "vite": "^8.3.0"
+  }
+}

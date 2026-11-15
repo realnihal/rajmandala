@@ -1,0 +1,766 @@
+{
+ "regions": [
+  {
+   "id": "north",
+   "name": "Himalayan North",
+   "bonus": 4
+  },
+  {
+   "id": "gangetic",
+   "name": "Gangetic Plain",
+   "bonus": 5
+  },
+  {
+   "id": "west",
+   "name": "Western Frontier",
+   "bonus": 3
+  },
+  {
+   "id": "central",
+   "name": "Central Heartland",
+   "bonus": 6
+  },
+  {
+   "id": "south",
+   "name": "Deccan South",
+   "bonus": 5
+  },
+  {
+   "id": "northeast",
+   "name": "Northeast",
+   "bonus": 4
+  }
+ ],
+ "territories": [
+  {
+   "id": "LAD",
+   "name": "Ladakh",
+   "covers": "Ladakh",
+   "region": "north",
+   "mountain": true,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "JNK",
+   "name": "Jammu & Kashmir",
+   "covers": "Jammu & Kashmir",
+   "region": "north",
+   "mountain": true,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "HIM",
+   "name": "Himachal",
+   "covers": "Himachal Pradesh",
+   "region": "north",
+   "mountain": true,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "PUN",
+   "name": "Punjab",
+   "covers": "Punjab, Chandigarh",
+   "region": "north",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "HAR",
+   "name": "Haryana",
+   "covers": "Haryana",
+   "region": "north",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "DEL",
+   "name": "Delhi",
+   "covers": "NCT of Delhi",
+   "region": "north",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "UTK",
+   "name": "Uttarakhand",
+   "covers": "Uttarakhand",
+   "region": "north",
+   "mountain": true,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "BRJ",
+   "name": "Braj–Doab",
+   "covers": "Western Uttar Pradesh incl. Rohilkhand, Agra",
+   "region": "gangetic",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "AWD",
+   "name": "Awadh",
+   "covers": "Central Uttar Pradesh incl. UP Bundelkhand",
+   "region": "gangetic",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "PUR",
+   "name": "Purvanchal",
+   "covers": "Eastern Uttar Pradesh",
+   "region": "gangetic",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "BIH",
+   "name": "Bihar",
+   "covers": "Bihar",
+   "region": "gangetic",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "JHA",
+   "name": "Jharkhand",
+   "covers": "Jharkhand",
+   "region": "gangetic",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "BEN",
+   "name": "Bengal",
+   "covers": "West Bengal",
+   "region": "gangetic",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "THR",
+   "name": "Thar",
+   "covers": "Western and northern Rajasthan",
+   "region": "west",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "ARV",
+   "name": "Aravalli",
+   "covers": "Eastern and southern Rajasthan",
+   "region": "west",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "KUT",
+   "name": "Kutch–Saurashtra",
+   "covers": "Kutch and the Saurashtra peninsula, Diu",
+   "region": "west",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "GUJ",
+   "name": "Gujarat Plains",
+   "covers": "North, central and south Gujarat, Daman, Dadra & Nagar Haveli",
+   "region": "west",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "KON",
+   "name": "Konkan & Goa",
+   "covers": "Mumbai, coastal Maharashtra, Goa",
+   "region": "west",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "MAL",
+   "name": "Malwa",
+   "covers": "Western Madhya Pradesh incl. Gwalior–Chambal",
+   "region": "central",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "MHK",
+   "name": "Mahakoshal",
+   "covers": "Eastern Madhya Pradesh incl. Bundelkhand, Baghelkhand",
+   "region": "central",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "CHH",
+   "name": "Chhattisgarh",
+   "covers": "Chhattisgarh",
+   "region": "central",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "ODI",
+   "name": "Odisha",
+   "covers": "Odisha",
+   "region": "central",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "VID",
+   "name": "Vidarbha",
+   "covers": "Eastern Maharashtra",
+   "region": "central",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "DSH",
+   "name": "Desh",
+   "covers": "Western and central Maharashtra plateau, Khandesh, Marathwada",
+   "region": "central",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "TEL",
+   "name": "Telangana",
+   "covers": "Telangana",
+   "region": "south",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "CAP",
+   "name": "Coastal Andhra",
+   "covers": "Coastal Andhra Pradesh",
+   "region": "south",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "RAY",
+   "name": "Rayalaseema",
+   "covers": "Southern interior Andhra Pradesh",
+   "region": "south",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "NKA",
+   "name": "North Karnataka",
+   "covers": "Northern Karnataka",
+   "region": "south",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "MYS",
+   "name": "Mysuru",
+   "covers": "Southern and coastal Karnataka",
+   "region": "south",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "KER",
+   "name": "Kerala",
+   "covers": "Kerala",
+   "region": "south",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "TON",
+   "name": "Tondai Nadu",
+   "covers": "Northern Tamil Nadu, Puducherry",
+   "region": "south",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "PAN",
+   "name": "Pandya Nadu",
+   "covers": "Southern and western Tamil Nadu",
+   "region": "south",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "SIK",
+   "name": "Sikkim",
+   "covers": "Sikkim",
+   "region": "northeast",
+   "mountain": true,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "ASM",
+   "name": "Assam",
+   "covers": "Assam",
+   "region": "northeast",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "ARU",
+   "name": "Arunachal",
+   "covers": "Arunachal Pradesh",
+   "region": "northeast",
+   "mountain": true,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "NAG",
+   "name": "Nagaland",
+   "covers": "Nagaland",
+   "region": "northeast",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "MAN",
+   "name": "Manipur",
+   "covers": "Manipur",
+   "region": "northeast",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "MIZ",
+   "name": "Mizoram",
+   "covers": "Mizoram",
+   "region": "northeast",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "TRI",
+   "name": "Tripura",
+   "covers": "Tripura",
+   "region": "northeast",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "MEG",
+   "name": "Meghalaya",
+   "covers": "Meghalaya",
+   "region": "northeast",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "AND",
+   "name": "Andaman & Nicobar",
+   "covers": "Andaman & Nicobar Islands",
+   "region": null,
+   "mountain": false,
+   "outpost": true,
+   "suit": "ashva"
+  },
+  {
+   "id": "LAK",
+   "name": "Lakshadweep",
+   "covers": "Lakshadweep",
+   "region": null,
+   "mountain": false,
+   "outpost": true,
+   "suit": "padati"
+  }
+ ],
+ "land": [
+  [
+   "LAD",
+   "JNK"
+  ],
+  [
+   "LAD",
+   "HIM"
+  ],
+  [
+   "JNK",
+   "HIM"
+  ],
+  [
+   "JNK",
+   "PUN"
+  ],
+  [
+   "HIM",
+   "PUN"
+  ],
+  [
+   "HIM",
+   "HAR"
+  ],
+  [
+   "HIM",
+   "UTK"
+  ],
+  [
+   "PUN",
+   "HAR"
+  ],
+  [
+   "HAR",
+   "DEL"
+  ],
+  [
+   "PUN",
+   "THR"
+  ],
+  [
+   "HAR",
+   "THR"
+  ],
+  [
+   "HAR",
+   "ARV"
+  ],
+  [
+   "HAR",
+   "BRJ"
+  ],
+  [
+   "DEL",
+   "BRJ"
+  ],
+  [
+   "UTK",
+   "BRJ"
+  ],
+  [
+   "BRJ",
+   "AWD"
+  ],
+  [
+   "AWD",
+   "PUR"
+  ],
+  [
+   "PUR",
+   "BIH"
+  ],
+  [
+   "PUR",
+   "JHA"
+  ],
+  [
+   "BIH",
+   "JHA"
+  ],
+  [
+   "BIH",
+   "BEN"
+  ],
+  [
+   "JHA",
+   "BEN"
+  ],
+  [
+   "BRJ",
+   "ARV"
+  ],
+  [
+   "BRJ",
+   "MAL"
+  ],
+  [
+   "AWD",
+   "MHK"
+  ],
+  [
+   "PUR",
+   "MHK"
+  ],
+  [
+   "PUR",
+   "CHH"
+  ],
+  [
+   "JHA",
+   "CHH"
+  ],
+  [
+   "JHA",
+   "ODI"
+  ],
+  [
+   "BEN",
+   "ODI"
+  ],
+  [
+   "BEN",
+   "SIK"
+  ],
+  [
+   "BEN",
+   "ASM"
+  ],
+  [
+   "THR",
+   "ARV"
+  ],
+  [
+   "THR",
+   "KUT"
+  ],
+  [
+   "ARV",
+   "GUJ"
+  ],
+  [
+   "KUT",
+   "GUJ"
+  ],
+  [
+   "GUJ",
+   "KON"
+  ],
+  [
+   "ARV",
+   "MAL"
+  ],
+  [
+   "GUJ",
+   "MAL"
+  ],
+  [
+   "GUJ",
+   "DSH"
+  ],
+  [
+   "KON",
+   "DSH"
+  ],
+  [
+   "KON",
+   "NKA"
+  ],
+  [
+   "MAL",
+   "MHK"
+  ],
+  [
+   "MAL",
+   "DSH"
+  ],
+  [
+   "MAL",
+   "VID"
+  ],
+  [
+   "MHK",
+   "VID"
+  ],
+  [
+   "MHK",
+   "CHH"
+  ],
+  [
+   "CHH",
+   "ODI"
+  ],
+  [
+   "CHH",
+   "VID"
+  ],
+  [
+   "VID",
+   "DSH"
+  ],
+  [
+   "CHH",
+   "TEL"
+  ],
+  [
+   "ODI",
+   "CAP"
+  ],
+  [
+   "VID",
+   "TEL"
+  ],
+  [
+   "DSH",
+   "TEL"
+  ],
+  [
+   "DSH",
+   "NKA"
+  ],
+  [
+   "TEL",
+   "CAP"
+  ],
+  [
+   "TEL",
+   "RAY"
+  ],
+  [
+   "TEL",
+   "NKA"
+  ],
+  [
+   "CAP",
+   "RAY"
+  ],
+  [
+   "CAP",
+   "TON"
+  ],
+  [
+   "RAY",
+   "TON"
+  ],
+  [
+   "RAY",
+   "NKA"
+  ],
+  [
+   "RAY",
+   "MYS"
+  ],
+  [
+   "NKA",
+   "MYS"
+  ],
+  [
+   "MYS",
+   "KER"
+  ],
+  [
+   "MYS",
+   "TON"
+  ],
+  [
+   "MYS",
+   "PAN"
+  ],
+  [
+   "KER",
+   "PAN"
+  ],
+  [
+   "TON",
+   "PAN"
+  ],
+  [
+   "ASM",
+   "ARU"
+  ],
+  [
+   "ASM",
+   "NAG"
+  ],
+  [
+   "ASM",
+   "MAN"
+  ],
+  [
+   "ASM",
+   "MIZ"
+  ],
+  [
+   "ASM",
+   "TRI"
+  ],
+  [
+   "ASM",
+   "MEG"
+  ],
+  [
+   "ARU",
+   "NAG"
+  ],
+  [
+   "NAG",
+   "MAN"
+  ],
+  [
+   "MAN",
+   "MIZ"
+  ],
+  [
+   "MIZ",
+   "TRI"
+  ],
+  [
+   "THR",
+   "GUJ"
+  ],
+  [
+   "AWD",
+   "MAL"
+  ]
+ ],
+ "sea": [
+  [
+   "KUT",
+   "KON"
+  ],
+  [
+   "KON",
+   "LAK"
+  ],
+  [
+   "KER",
+   "LAK"
+  ],
+  [
+   "AND",
+   "BEN"
+  ],
+  [
+   "AND",
+   "CAP"
+  ],
+  [
+   "AND",
+   "TON"
+  ]
+ ]
+}
