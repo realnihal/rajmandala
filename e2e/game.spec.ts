@@ -30,6 +30,11 @@ test('shared screen: an attack zooms in, rolls dice and shows the result', async
   await page.getByRole('button', { name: 'Go to attack' }).click();
   await expect(page.locator('.controls')).toContainText('Click one of your territories');
   await pickAttack(page, me);
+  // Choosing a target zooms in before any dice are rolled, and the player can back out.
+  await expect(page.locator('.board')).not.toHaveAttribute('viewBox', FULL_MAP);
+  await page.getByRole('button', { name: 'Leave this attack' }).click();
+  await expect(page.locator('.board')).toHaveAttribute('viewBox', FULL_MAP, { timeout: 10_000 });
+  await pickAttack(page, me);
   await page.getByRole('button', { name: /^Roll \d$/ }).last().click();
 
   // The battle plays out: dice tumble and the map zooms to the fight.
@@ -39,6 +44,13 @@ test('shared screen: an attack zooms in, rolls dice and shows the result', async
   // Then it settles, reports the losses and zooms back out.
   await expect(page.locator('.dice p')).toContainText(/attacker lost \d, defender lost \d/, { timeout: 10_000 });
   await expect(page.locator('.die.rolling')).toHaveCount(0);
+  // The map stays on the fight until the player leaves it or moves in after a capture.
+  await expect(page.locator('.board')).not.toHaveAttribute('viewBox', FULL_MAP);
+  const leave = page.getByRole('button', { name: 'Leave this attack' });
+  const moveIn = page.locator('.controls button.primary', { hasText: /^Move \d+$/ });
+  await expect(leave.or(moveIn).first()).toBeVisible();
+  if (await leave.isVisible()) await leave.click();
+  else await moveIn.click();
   await expect(page.locator('.board')).toHaveAttribute('viewBox', FULL_MAP, { timeout: 10_000 });
 });
 

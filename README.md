@@ -40,6 +40,10 @@ npm run test:browser   # plays the game in a browser (first: npx playwright inst
 - **Game screen:** every push to `main` builds it and publishes it to GitHub Pages ([workflow](.github/workflows/pages.yml)). The repository variable `API_BASE` holds the game server's address.
 - **Game server:** from `packages/web`, run `npx cf deploy` (sign in first with `npx cf auth login`). To deploy it automatically on every push instead, add the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` ([workflow](.github/workflows/deploy-server.yml)). The sites allowed to use the server are listed in `ALLOWED_ORIGINS` in [`cloudflare.config.ts`](packages/web/cloudflare.config.ts).
 
+## Licence
+
+The code is released under the [MIT licence](LICENSE). The boundary data in `tools/map-build/data` keeps its own licence, below.
+
 ## Credits
 
 Territory boundaries are built from the Census 2011 district map by the [DataMeet India community](https://github.com/datameet/maps/tree/master/Districts/Census_2011), shared under [Creative Commons Attribution 2.5 India](http://creativecommons.org/licenses/by/2.5/in/).

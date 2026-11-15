@@ -24,6 +24,8 @@ interface Props {
   from?: TerritoryId;
   to?: TerritoryId;
   battle: Battle | null;
+  /** An attack being lined up or followed through: the map stays close on these two territories. */
+  focus: { from: TerritoryId; to: TerritoryId } | null;
   onPick: (id: TerritoryId, many: boolean) => void;
 }
 
@@ -232,12 +234,14 @@ function Pieces({ n, fill, y }: { n: number; fill: string; y: number }) {
 }
 
 export default function Board(props: Props) {
-  const { game, armies, colorOf, nameOf, clickable, targets, from, to, battle, onPick } = props;
+  const { game, armies, colorOf, nameOf, clickable, targets, from, to, battle, focus, onPick } = props;
   const monsoon = isMonsoon(game);
   const [view, setView] = useState<Box>(FULL);
   const svg = useRef<SVGSVGElement>(null);
-  const box = useZoom(battle ? battleBox(battle.from, battle.to) : view, battle !== null);
-  usePanZoom(svg, view, setView, battle !== null);
+  // Close on the fight from the moment a target is chosen until the player leaves it.
+  const close = battle ?? focus;
+  const box = useZoom(close ? battleBox(close.from, close.to) : view, close !== null);
+  usePanZoom(svg, view, setView, close !== null);
   const zoomed = view[2] < W - 1;
   const step = (factor: number) => setView(zoomAt(view, factor, view[0] + view[2] / 2, view[1] + view[3] / 2));
   const capitalOf = new Map(Object.values(game.players).flatMap((p) => (p.capital ? [[p.capital, p.id] as const] : [])));
@@ -257,7 +261,7 @@ export default function Board(props: Props) {
 
   return (
     <div className="boardwrap">
-      <div className="zoom" role="group" aria-label="Map zoom">
+      <div className="zoom" role="group" aria-label="Map zoom" hidden={close !== null}>
         <button onClick={() => step(0.7)} disabled={view[2] <= MIN_VIEW + 1} aria-label="Zoom in">
           +
         </button>
@@ -272,7 +276,7 @@ export default function Board(props: Props) {
       </div>
     <svg
       ref={svg}
-      className={`board ${monsoon ? 'monsoon' : ''} ${battle ? 'fighting' : ''} ${zoomed ? 'zoomed' : ''}`}
+      className={`board ${monsoon ? 'monsoon' : ''} ${close ? 'fighting' : ''} ${zoomed && !close ? 'zoomed' : ''}`}
       viewBox={box.map((v) => Math.round(v * 10) / 10).join(' ')}
       role="group"
       aria-label="Map of India"

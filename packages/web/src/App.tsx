@@ -505,7 +505,14 @@ export function Game(props: GameProps) {
         </>
       );
     }
-    if (forcedTrade) return <p>You hold {hand.length} cards. Trade a set below before you continue.</p>;
+    if (forcedTrade) {
+      return (
+        <>
+          <p>You hold {hand.length} cards and must trade a set before you continue.</p>
+          {tradeOffer}
+        </>
+      );
+    }
     if (placing) {
       const b = calcReinforcements(game, actor!);
       return (
@@ -521,6 +528,7 @@ export function Game(props: GameProps) {
               {b.capital > 0 && ', 1 for your capital'}.
             </p>
           )}
+          {tradeOffer}
           {sel.from && mine(sel.from) && (
             <button onClick={() => act({ type: 'place', territory: sel.from!, armies: game.pendingReinforcements })}>
               Place all {game.pendingReinforcements} on {territory(sel.from).name}
@@ -533,6 +541,7 @@ export function Game(props: GameProps) {
       return (
         <>
           <p>All armies placed. Trade cards if you wish, then attack.</p>
+          {tradeOffer}
           <button className="primary" onClick={() => act({ type: 'endPhase' })}>
             Go to attack
           </button>
@@ -572,6 +581,8 @@ export function Game(props: GameProps) {
                   Blitz
                 </button>
               </div>
+              <p className="hint">Roll one round at a time, or Blitz to keep rolling until it is decided.</p>
+              <button onClick={() => setSel({})}>Leave this attack</button>
             </>
           )}
           <button onClick={() => act({ type: 'endPhase' })}>End attacks</button>
@@ -625,6 +636,22 @@ export function Game(props: GameProps) {
   const canTrade = !anim && (phase === 'reinforce' || forcedTrade);
   const tradeValue = picked.length === 3 ? setValue(picked) : null;
   const best = bestSet(hand);
+  // The best set is picked out for the player whenever their hand or their chance to trade changes.
+  const handKey = hand.join();
+  useEffect(() => {
+    if (canTrade && best) setPicked(best);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handKey, canTrade]);
+  const tradeOffer =
+    canTrade && best ? (
+      <button
+        onClick={() => {
+          if (act({ type: 'trade', cards: best })) setPicked([]);
+        }}
+      >
+        Trade your best set for {setValue(best)} armies
+      </button>
+    ) : null;
   const shownRoll = anim ? anim.rolls[anim.i] : rolls[rolls.length - 1];
   const tumbling = anim !== null && !anim.settled;
   const tally = anim ? seen : rolls;
@@ -643,6 +670,13 @@ export function Game(props: GameProps) {
           targets={targets}
           from={anim ? anim.from : phase === 'occupy' ? game.pendingOccupy?.from : sel.from}
           to={anim ? anim.to : phase === 'occupy' ? game.pendingOccupy?.to : sel.to}
+          focus={
+            canAct && phase === 'attack' && sel.from && sel.to
+              ? { from: sel.from, to: sel.to }
+              : canAct && phase === 'occupy' && game.pendingOccupy
+                ? { from: game.pendingOccupy.from, to: game.pendingOccupy.to }
+                : null
+          }
           battle={
             anim
               ? {
