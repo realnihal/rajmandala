@@ -256,6 +256,10 @@ export interface GameProps {
   onChat?: (text: string) => void;
   /** Offered while this screen's player is still in an online game. */
   onSurrender?: () => void;
+  /** The attack another player is lining up, so this screen can follow it. */
+  aim?: { from: TerritoryId; to: TerritoryId } | null;
+  /** Tells the other players which attack this screen's player is lining up, or null when they back out. */
+  onAim?: (aim: { from: TerritoryId; to: TerritoryId } | null) => void;
 }
 
 function formatLeft(ms: number): string {
@@ -265,7 +269,7 @@ function formatLeft(ms: number): string {
 }
 
 export function Game(props: GameProps) {
-  const { names, update, hotseat = false, viewer, send, serverError, quit, finished, banner, deadline = null, chat, onChat, onSurrender } = props;
+  const { names, update, hotseat = false, viewer, send, serverError, quit, finished, banner, deadline = null, chat, onChat, onSurrender, aim = null, onAim } = props;
   const [game, setGame] = useState(update.view);
   const [log, setLog] = useState<string[]>([]);
   const [sel, setSel] = useState<{ from?: TerritoryId; to?: TerritoryId }>({});
@@ -337,6 +341,18 @@ export function Game(props: GameProps) {
     return () => clearInterval(id);
   }, [deadline]);
   const left = deadline !== null && phase !== 'finished' ? deadline - clock : null;
+
+  // Let the others watch this player line up an attack, and stop when they back out or the phase ends.
+  const aiming = myTurn && phase === 'attack' && sel.from && sel.to ? `${sel.from}>${sel.to}` : '';
+  useEffect(() => {
+    onAim?.(aiming ? { from: sel.from!, to: sel.to! } : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiming]);
+  // What a watcher follows: the attack someone else is lining up, while it still makes sense on the board.
+  const watched =
+    !canAct && !myTurn && aim && phase === 'attack' && actor !== null && game.territories[aim.from]?.owner === actor && game.territories[aim.to]?.owner !== actor
+      ? aim
+      : null;
 
   function commit(next: GameView, lines: string[]) {
     setGame(next);
@@ -465,6 +481,13 @@ export function Game(props: GameProps) {
       if (inSetup) {
         const waiting = players.filter(pending).map((p) => name(p.id));
         return <p>Waiting for {waiting.join(', ') || 'the game to begin'} to {phase === 'setup-capital' ? 'choose a capital' : 'place armies'}.</p>;
+      }
+      if (watched) {
+        return (
+          <p>
+            {name(actor!)} is lining up an attack: <b>{territory(watched.from).name}</b> on <b>{territory(watched.to).name}</b>.
+          </p>
+        );
       }
       return <p>{viewer ? `Waiting for ${name(actor!)} to play.` : `${name(actor!)} is playing.`}</p>;
     }
@@ -668,14 +691,14 @@ export function Game(props: GameProps) {
           nameOf={name}
           clickable={phase === 'finished' || anim ? new Set() : clickable}
           targets={targets}
-          from={anim ? anim.from : phase === 'occupy' ? game.pendingOccupy?.from : sel.from}
-          to={anim ? anim.to : phase === 'occupy' ? game.pendingOccupy?.to : sel.to}
+          from={anim ? anim.from : phase === 'occupy' ? game.pendingOccupy?.from : (watched?.from ?? sel.from)}
+          to={anim ? anim.to : phase === 'occupy' ? game.pendingOccupy?.to : (watched?.to ?? sel.to)}
           focus={
             canAct && phase === 'attack' && sel.from && sel.to
               ? { from: sel.from, to: sel.to }
-              : canAct && phase === 'occupy' && game.pendingOccupy
+              : phase === 'occupy' && game.pendingOccupy && !anim
                 ? { from: game.pendingOccupy.from, to: game.pendingOccupy.to }
-                : null
+                : watched
           }
           battle={
             anim

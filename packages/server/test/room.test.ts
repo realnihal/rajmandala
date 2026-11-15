@@ -328,3 +328,24 @@ describe('timers and bots', () => {
     expect(t.core.expired(clock + 8 * day)).toBe(true);
   });
 });
+
+describe('watching an attack being lined up', () => {
+  it("passes the current player's chosen attack to everyone else and to nobody when it is not their turn", () => {
+    const t = startedTable(3);
+    for (const p of ['p1', 'p2', 'p3']) t.send(`c${p[1]}`, { t: 'action', id: `cap-${p}`, action: { type: 'chooseCapital', territory: territoriesOf(t.core.data.game!, p)[0] } });
+    const g = t.core.data.game!;
+    const me = g.turnOrder[g.turnIndex];
+    const other = g.turnOrder[(g.turnIndex + 1) % 3];
+    const seq = t.core.data.seq;
+
+    const out = t.send(`c${me[1]}`, { t: 'aim', from: 'DEL', to: 'HAR' });
+    expect(out.persist).toBe(false);
+    expect(out.send.map((s) => s.to).sort()).toEqual(['c1', 'c2', 'c3'].filter((c) => c !== `c${me[1]}`));
+    expect(out.send[0].msg).toEqual({ t: 'aim', player: me, from: 'DEL', to: 'HAR' });
+    expect(t.core.data.seq).toBe(seq);
+
+    expect(t.send(`c${me[1]}`, { t: 'aim', from: null, to: null }).send[0].msg).toEqual({ t: 'aim', player: me, from: null, to: null });
+    expect(t.send(`c${other[1]}`, { t: 'aim', from: 'DEL', to: 'HAR' }).send).toHaveLength(0);
+    expect(t.send(`c${me[1]}`, { t: 'aim', from: 'NOPE', to: 'HAR' }).send[0].msg).toMatchObject({ t: 'error' });
+  });
+});

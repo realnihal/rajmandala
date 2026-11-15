@@ -21,6 +21,7 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
   const [games, setGames] = useState(0);
   const sock = useRef<RoomSocket | null>(null);
   const wasLobby = useRef(true);
+  const [aim, setAim] = useState<{ from: string; to: string } | null>(null);
   /** Server clock minus this device's clock, so deadlines count down correctly here. */
   const skew = useRef(0);
 
@@ -38,6 +39,9 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
             if (msg.code === 'upgrade-required') return location.reload();
             return setProblem((p) => ({ text: msg.message, n: (p?.n ?? 0) + 1 }));
           }
+          if (msg.t === 'aim') return setAim(msg.from && msg.to ? { from: msg.from, to: msg.to } : null);
+          // Once a turn moves out of the attack phase, whatever was being lined up is over.
+          if (msg.game?.phase !== 'attack' && msg.game?.phase !== 'occupy') setAim(null);
           // A fresh game gets a fresh screen, including after a rematch.
           if (msg.room.status !== 'lobby' && wasLobby.current) setGames((g) => g + 1);
           wasLobby.current = msg.room.status === 'lobby';
@@ -139,6 +143,8 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
       chat={state.chat}
       onChat={(text) => send.send({ t: 'chat', text })}
       onSurrender={() => send.action({ type: 'surrender' })}
+      aim={aim}
+      onAim={(a) => send.send({ t: 'aim', from: a?.from ?? null, to: a?.to ?? null })}
       quit={{ label: 'Leave room', confirm: 'Leave this room? Your seat is kept and you can come back with the same link.', run: onExit }}
       finished={
         <div className="row">

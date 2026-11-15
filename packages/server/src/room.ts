@@ -1,4 +1,4 @@
-import { RuleError, applyAction, awaitedPlayers, botAction, createGame, randomPlacement, viewFor } from '@rajmandala/engine';
+import { RuleError, applyAction, awaitedPlayers, botAction, createGame, currentPlayer, isTerritory, randomPlacement, viewFor } from '@rajmandala/engine';
 import type { Action, GameEvent, GameState, PlayerId } from '@rajmandala/engine';
 import { PROTOCOL_VERSION, TURN_SECONDS } from './protocol';
 import type { ChatLine, ClientMsg, RoomOptions, RoomStatus, RoomView, ServerMsg } from './protocol';
@@ -250,6 +250,19 @@ export class RoomCore {
         d.chat.push({ from: me.id, name: me.name, text, at: now });
         if (d.chat.length > CHAT_KEPT) d.chat.splice(0, d.chat.length - CHAT_KEPT);
         return this.changed(chance);
+      }
+      case 'aim': {
+        // Passed straight on to everyone else; nothing is stored and the game does not change.
+        const g = d.game;
+        const aiming = msg.from !== null && msg.to !== null;
+        if (!me || d.status !== 'playing' || !g || g.round === 0 || currentPlayer(g) !== me.id) return { persist: false, send: [] };
+        if (aiming && (!isTerritory(msg.from) || !isTerritory(msg.to))) return this.reject(conn, 'bad-message', 'Unknown territory');
+        const from = aiming ? msg.from : null;
+        const to = aiming ? msg.to : null;
+        return {
+          persist: false,
+          send: [...this.conns.keys()].filter((c) => c !== conn).map((c) => ({ to: c, msg: { t: 'aim' as const, player: me.id, from, to } })),
+        };
       }
       case 'leave':
         if (!me || d.status !== 'lobby') return this.reject(conn, 'not-allowed', 'You can only leave before the game starts');

@@ -1,7 +1,7 @@
 import type { Action, GameEvent, GameView, PlayerId, VictoryMode } from '@rajmandala/engine';
 
 /** Bumped whenever a message changes shape; an old client is told to reload. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export interface RoomOptions {
   victory: VictoryMode;
@@ -49,6 +49,8 @@ export type ClientMsg =
   | { t: 'kick'; id: PlayerId }
   | { t: 'addBot' }
   | { t: 'chat'; text: string }
+  /** The attack the player is lining up, so others can watch it; nulls when they back out. */
+  | { t: 'aim'; from: string | null; to: string | null }
   | { t: 'leave' }
   | { t: 'start' }
   | { t: 'rematch' }
@@ -74,4 +76,6 @@ export type ServerMsg =
       /** The action this state answers, on the sender's own connection. */
       ack?: string;
     }
+  /** Another player is lining up an attack (or has backed out). Not part of the game state. */
+  | { t: 'aim'; player: PlayerId; from: string | null; to: string | null }
   | { t: 'error'; code: string; message: string; id?: string };
