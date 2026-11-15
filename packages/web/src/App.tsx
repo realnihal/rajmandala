@@ -27,6 +27,8 @@ type DiceEvent = Extract<GameEvent, { type: 'diceRolled' }>;
 interface Saved {
   game: GameState;
   names: Record<PlayerId, string>;
+  /** Identifies this game, so a new game gets a fresh screen. */
+  id?: string;
   /** Place starting armies at random as soon as every capital is chosen. */
   autoPlace?: boolean;
 }
@@ -128,7 +130,9 @@ export function HotSeat({ onExit }: { onExit: () => void }) {
   };
   return (
     <Game
-      key={saved.game.turnOrder.join() + saved.game.rng}
+      // One screen per game. The key must not change while a game is played, or the screen (and any
+      // battle animation in progress) would be thrown away and rebuilt.
+      key={saved.id ?? saved.game.turnOrder.join()}
       names={saved.names}
       update={update}
       hotseat
@@ -157,7 +161,7 @@ function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () 
     const nameMap = Object.fromEntries(ids.map((id, i) => [id, names[i].trim() || `Player ${i + 1}`]));
     const seed = crypto.getRandomValues(new Uint32Array(1))[0];
     const game = createGame({ players: ids, seed, victory }).state;
-    onStart({ game, names: nameMap, autoPlace: quick });
+    onStart({ id: crypto.randomUUID(), game, names: nameMap, autoPlace: quick });
   }
 
   return (
