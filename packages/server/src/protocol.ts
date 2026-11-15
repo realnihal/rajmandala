@@ -1,7 +1,7 @@
 import type { Action, GameEvent, GameView, PlayerId, VictoryMode } from '@rajmandala/engine';
 
 /** Bumped whenever a message changes shape; an old client is told to reload. */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 export interface RoomOptions {
   victory: VictoryMode;

@@ -14,7 +14,7 @@ Create a room, share the invite link or the 6-character code, and start when eve
 | Game server | [`packages/web/worker`](packages/web/worker) | A Cloudflare Worker with one Durable Object per room. |
 | Room rules | [`packages/server`](packages/server) | Seats, invites, reconnects and the message protocol. |
 | Game rules | [`packages/engine`](packages/engine) | The whole game as a pure, tested module, plus the map data. |
-| Map builder | [`tools/map-build`](tools/map-build) | Turns district boundaries into the 42 territory shapes. |
+| Map builder | [`tools/map-build`](tools/map-build) | Turns district boundaries into the 43 territory shapes. |
 
 The design, rules and build plan are in [rajmandala-game-plan.md](rajmandala-game-plan.md).
 

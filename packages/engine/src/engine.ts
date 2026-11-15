@@ -1,4 +1,4 @@
-import { OUTPOSTS, REGIONS, TERRITORY_IDS, isAdjacent, isTerritory, neighbors, territory } from './map';
+import { OUTPOSTS, REGIONS, TERRITORY_IDS, isAdjacent, isRiver, isTerritory, neighbors, territory } from './map';
 import type { Suit, TerritoryId } from './map';
 import { rollDie, shuffle } from './rng';
 import { RuleError } from './types';
@@ -15,7 +15,8 @@ import type {
   VictoryMode,
 } from './types';
 
-export const RULES_VERSION = 1;
+/** Changes whenever the map or the rules change in a way an unfinished game cannot survive. */
+export const RULES_VERSION = 2;
 export const SAMRAJYA_TARGET = 28;
 export const CAPITAL_CAPTURE_BONUS = 3;
 export const MONSOON_EVERY = 4;
@@ -24,7 +25,7 @@ export const WILD_CARDS: readonly CardId[] = ['RATHA1', 'RATHA2'];
 const START_ARMIES: Record<number, number> = { 2: 40, 3: 35, 4: 30, 5: 25, 6: 20 };
 /** Extra starting armies per seat after the first. Set from bot simulations. */
 export const SEAT_COMPENSATION = 2;
-const TWO_PLAYER_TERRITORIES = 14;
+const TWO_PLAYER_TERRITORIES = 14; // each; the rest of the map starts neutral
 const NEUTRAL_ARMIES = 2;
 const SET_VALUES: Record<Suit, number> = { padati: 4, ashva: 6, gaja: 8 };
 const MIXED_SET_VALUE = 10;
@@ -63,11 +64,15 @@ export function isHeldCapital(s: BoardLike, id: TerritoryId): boolean {
   return owner !== 'neutral' && s.players[owner]?.capital === id;
 }
 
-/** Most dice an attacker may roll into `to` this round, before counting armies. */
-export function maxAttackDice(s: BoardLike, to: TerritoryId): number {
-  const mountain = territory(to).mountain;
-  if (isMonsoon(s)) return mountain ? 1 : 2;
-  return mountain ? 2 : 3;
+/**
+ * Most dice an attacker may roll into `to` this round, before counting armies.
+ * Mountains and the Monsoon each cost a die; so does crossing a river, when `from` is given.
+ */
+export function maxAttackDice(s: BoardLike, to: TerritoryId, from?: TerritoryId): number {
+  let dice = 3;
+  if (territory(to).mountain || (from !== undefined && isRiver(from, to))) dice -= 1;
+  if (isMonsoon(s)) dice -= 1;
+  return dice;
 }
 
 export interface ReinforcementBreakdown {
@@ -375,7 +380,7 @@ function attack(s: GameState, ev: GameEvent[], p: PlayerState, a: Extract<Action
   if (to.owner === p.id) fail('invalid-action', 'You cannot attack yourself');
   if (!isAdjacent(a.from, a.to, !isMonsoon(s))) fail('not-adjacent', 'Those territories are not connected');
   if (from.armies < 2) fail('too-few-armies', 'You need at least 2 armies to attack');
-  const limit = maxAttackDice(s, a.to);
+  const limit = maxAttackDice(s, a.to, a.from);
   if (!isPositiveInt(a.dice) || a.dice > limit) fail('too-many-dice', `At most ${limit} dice here`);
   if (a.dice >= from.armies) fail('too-few-armies', 'You need more armies than dice');
 

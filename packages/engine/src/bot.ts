@@ -95,7 +95,7 @@ export function botAction(s: GameState, player: PlayerId, rand: () => number, st
       }
     }
     if (!best) return { type: 'endPhase' };
-    const dice = Math.min(maxAttackDice(s, best.to), armies(best.from) - 1);
+    const dice = Math.min(maxAttackDice(s, best.to, best.from), armies(best.from) - 1);
     return { type: 'attack', from: best.from, to: best.to, dice, blitz: true };
   }
 

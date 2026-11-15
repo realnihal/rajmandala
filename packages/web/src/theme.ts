@@ -26,4 +26,6 @@ export const TOKEN_NUDGE: Record<string, { dx?: number; dy?: number; labelDy?: n
   CAP: { labelDy: -17 }, // name above the token, clear of Rayalaseema's
   TRI: { labelDx: -14 },
   MIZ: { labelDx: 14 },
+  NBN: { dx: 7, dy: 5 },
+  SIK: { labelDy: -17 }, // name above the token, clear of North Bengal just below
 };

@@ -30,13 +30,15 @@ const WHOLE_STATES = {
   Chhattisgarh: 'CHH', 'Dadara & Nagar Havelli': 'GUJ', Goa: 'KON', Haryana: 'HAR', 'Himachal Pradesh': 'HIM',
   Jharkhand: 'JHA', Kerala: 'KER', Lakshadweep: 'LAK', Manipur: 'MAN', Meghalaya: 'MEG', Mizoram: 'MIZ',
   'NCT of Delhi': 'DEL', Nagaland: 'NAG', Odisha: 'ODI', Punjab: 'PUN', Sikkim: 'SIK', Tripura: 'TRI',
-  Uttarakhand: 'UTK', 'West Bengal': 'BEN',
+  Uttarakhand: 'UTK',
 };
 
 /** For split states: every territory but the last lists its districts; the last takes the rest. */
 const SPLIT_STATES = {
   'Jammu & Kashmir': { LAD: ['Leh (ladakh)', 'Kargil'], JNK: null },
   'Daman & Diu': { KUT: ['Diu'], GUJ: null },
+  // North Bengal is the Siliguri corridor: the only land link to the Northeast.
+  'West Bengal': { NBN: ['Darjiling', 'Jalpaiguri', 'Koch Bihar'], BEN: null },
   Puducherry: { PAN: ['Karaikal'], KER: ['Mahe'], CAP: ['Yanam'], TON: null },
   'Uttar Pradesh': {
     BRJ: ['Saharanpur', 'Muzaffarnagar', 'Bijnor', 'Meerut', 'Baghpat', 'Ghaziabad', 'Gautam Buddha Nagar', 'Bulandshahr',
@@ -150,14 +152,16 @@ for (const g of layer.geometries) {
     arcOwners.get(i).add(g.properties.terr);
   }
 }
+function arcPoints(i) {
+  const pts = topo.arcs[i];
+  if (!topo.transform) return pts;
+  const { scale, translate } = topo.transform;
+  let x = 0;
+  let y = 0;
+  return pts.map(([dx, dy]) => [(x += dx) * scale[0] + translate[0], (y += dy) * scale[1] + translate[1]]);
+}
 function arcLengthKm(i) {
-  let pts = topo.arcs[i];
-  if (topo.transform) {
-    const { scale, translate } = topo.transform;
-    let x = 0;
-    let y = 0;
-    pts = pts.map(([dx, dy]) => [(x += dx) * scale[0] + translate[0], (y += dy) * scale[1] + translate[1]]);
-  }
+  const pts = arcPoints(i);
   let len = 0;
   for (let j = 1; j < pts.length; j++) len += Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1]);
   return len / 1000;
@@ -171,7 +175,8 @@ for (const [i, owners] of arcOwners) {
 const gameLand = new Set(gameMap.land.map(([a, b]) => [a, b].sort().join('-')));
 const problems = [];
 // Territories whose shapes meet only at a short stretch and which the game deliberately does not connect.
-const NOT_CROSSINGS = new Set(['BRJ-HIM', 'ODI-TEL']);
+const WALLS = gameMap.walls ?? [];
+const NOT_CROSSINGS = new Set(['BRJ-HIM', 'ODI-TEL', ...WALLS.map((w) => [w.a, w.b].sort().join('-'))]);
 for (const [key, km] of shared) if (!gameLand.has(key) && !NOT_CROSSINGS.has(key)) problems.push(`shapes touch but game has no border: ${key} (${km.toFixed(0)} km)`);
 for (const key of gameLand) if (!shared.has(key)) problems.push(`game border with no shared boundary:    ${key}`);
 if (problems.length) process.exitCode = 1;
@@ -272,6 +277,35 @@ for (const f of regionGeo.features) {
   const polys = toPixels(f.geometry);
   out.regions[f.properties.region] = { d: pathOf(polys), ...labelPoint(polys[0]) };
 }
+// Walls: borders that cannot be crossed. Each gets the line of the border itself and evenly
+// spaced points along it, where the board draws peaks or trees.
+const MARK_EVERY = 11;
+out.walls = WALLS.map((w) => {
+  const key = [w.a, w.b].sort().join('-');
+  const lines = [...arcOwners]
+    .filter(([, owners]) => owners.size === 2 && [...owners].sort().join('-') === key)
+    .map(([i]) => arcPoints(i).map(px));
+  if (lines.length === 0) throw new Error(`Wall ${key} has no shared border to draw on`);
+  const marks = [];
+  for (const line of lines) {
+    let carried = MARK_EVERY / 2;
+    for (let i = 1; i < line.length; i++) {
+      const [ax, ay] = line[i - 1];
+      const [bx, by] = line[i];
+      const len = Math.hypot(bx - ax, by - ay);
+      for (; carried <= len; carried += MARK_EVERY) marks.push([r1(ax + ((bx - ax) * carried) / len), r1(ay + ((by - ay) * carried) / len)]);
+      carried -= len;
+    }
+  }
+  const longest = lines.reduce((a, b) => (b.length > a.length ? b : a));
+  const mid = longest[Math.floor(longest.length / 2)];
+  return {
+    ...w,
+    d: lines.map((line) => `M${line.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}`).join(''),
+    marks,
+    label: { x: r1(mid[0]), y: r1(mid[1]) },
+  };
+});
 const file = join(root, 'packages/web/src/mapShapes.json');
 writeFileSync(file, JSON.stringify(out));
 console.log(`Wrote ${file} (${(JSON.stringify(out).length / 1024).toFixed(0)} KB, ${WIDTH}×${HEIGHT}).`);

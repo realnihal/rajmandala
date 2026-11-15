@@ -21,19 +21,33 @@ export interface Region {
   territories: TerritoryId[];
 }
 
-export const TERRITORIES: readonly Territory[] = raw.territories as Territory[];
-export const TERRITORY_IDS: readonly TerritoryId[] = TERRITORIES.map((t) => t.id);
-export const LAND_EDGES = raw.land as [TerritoryId, TerritoryId][];
-export const SEA_EDGES = raw.sea as [TerritoryId, TerritoryId][];
+/** The map as data. `rivers` are land borders that are harder to cross (see neighbors and isRiver). */
+export interface MapData {
+  regions: { id: RegionId; name: string; bonus: number }[];
+  territories: Territory[];
+  land: [TerritoryId, TerritoryId][];
+  sea: [TerritoryId, TerritoryId][];
+  rivers?: [TerritoryId, TerritoryId][];
+  /** Borders that cannot be crossed: a mountain range or forest stands in the way. They are not in `land`. */
+  walls?: { a: TerritoryId; b: TerritoryId; name: string; kind: 'range' | 'forest' }[];
+}
 
-const byId = new Map(TERRITORIES.map((t) => [t.id, t]));
+export const BASE_MAP = raw as unknown as MapData;
 
-export const REGIONS: readonly Region[] = raw.regions.map((r) => ({
-  ...r,
-  territories: TERRITORIES.filter((t) => t.region === r.id).map((t) => t.id),
-}));
+export let TERRITORIES: readonly Territory[] = [];
+export let TERRITORY_IDS: readonly TerritoryId[] = [];
+export let LAND_EDGES: [TerritoryId, TerritoryId][] = [];
+export let SEA_EDGES: [TerritoryId, TerritoryId][] = [];
+export let RIVER_EDGES: [TerritoryId, TerritoryId][] = [];
+export let REGIONS: readonly Region[] = [];
+export let OUTPOSTS: readonly TerritoryId[] = [];
 
-export const OUTPOSTS: readonly TerritoryId[] = TERRITORIES.filter((t) => t.outpost).map((t) => t.id);
+let byId = new Map<TerritoryId, Territory>();
+let landAdj = new Map<TerritoryId, TerritoryId[]>();
+let seaAdj = new Map<TerritoryId, TerritoryId[]>();
+let rivers = new Set<string>();
+
+const edgeKey = (a: TerritoryId, b: TerritoryId) => (a < b ? `${a}-${b}` : `${b}-${a}`);
 
 function buildAdjacency(edges: [TerritoryId, TerritoryId][]): Map<TerritoryId, TerritoryId[]> {
   const adj = new Map<TerritoryId, TerritoryId[]>(TERRITORY_IDS.map((id) => [id, []]));
@@ -44,8 +58,30 @@ function buildAdjacency(edges: [TerritoryId, TerritoryId][]): Map<TerritoryId, T
   return adj;
 }
 
-const landAdj = buildAdjacency(LAND_EDGES);
-const seaAdj = buildAdjacency(SEA_EDGES);
+/**
+ * Replaces the map in use. The game always runs on BASE_MAP; this exists so
+ * simulations can try out variants of the map before one is adopted.
+ */
+export function loadMap(data: MapData): void {
+  TERRITORIES = data.territories;
+  TERRITORY_IDS = TERRITORIES.map((t) => t.id);
+  LAND_EDGES = data.land;
+  SEA_EDGES = data.sea;
+  RIVER_EDGES = data.rivers ?? [];
+  byId = new Map(TERRITORIES.map((t) => [t.id, t]));
+  REGIONS = data.regions.map((r) => ({ ...r, territories: TERRITORIES.filter((t) => t.region === r.id).map((t) => t.id) }));
+  OUTPOSTS = TERRITORIES.filter((t) => t.outpost).map((t) => t.id);
+  rivers = new Set(RIVER_EDGES.map(([a, b]) => edgeKey(a, b)));
+  // A river crossing is a land border that closes with the sea routes, so it is kept apart from open land.
+  landAdj = buildAdjacency(LAND_EDGES.filter(([a, b]) => !rivers.has(edgeKey(a, b))));
+  seaAdj = buildAdjacency([...SEA_EDGES, ...RIVER_EDGES]);
+}
+loadMap(BASE_MAP);
+
+/** True when the border between two territories is a river crossing: attackers roll one die fewer, and it closes in the Monsoon. */
+export function isRiver(a: TerritoryId, b: TerritoryId): boolean {
+  return rivers.has(edgeKey(a, b));
+}
 
 export function territory(id: TerritoryId): Territory {
   const t = byId.get(id);
@@ -57,7 +93,7 @@ export function isTerritory(id: unknown): id is TerritoryId {
   return typeof id === 'string' && byId.has(id);
 }
 
-/** Neighbours of a territory. Sea routes are included only when `seaOpen` is true. */
+/** Neighbours of a territory. Sea routes and river crossings are included only when `seaOpen` is true. */
 export function neighbors(id: TerritoryId, seaOpen: boolean): TerritoryId[] {
   const land = landAdj.get(id) ?? [];
   return seaOpen ? [...land, ...(seaAdj.get(id) ?? [])] : land;
@@ -106,7 +142,8 @@ export function validateMap(): string[] {
   const suits: Record<string, number> = {};
   for (const t of TERRITORIES) suits[t.suit] = (suits[t.suit] ?? 0) + 1;
   const counts = ['padati', 'ashva', 'gaja'].map((s) => suits[s] ?? 0);
-  if (new Set(counts).size !== 1 || Object.keys(suits).length !== 3) {
+  // As even as the number of territories allows.
+  if (Math.max(...counts) - Math.min(...counts) > 1 || Object.keys(suits).length !== 3) {
     problems.push(`card suits are uneven: ${JSON.stringify(suits)}`);
   }
   return problems;

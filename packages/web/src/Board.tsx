@@ -30,7 +30,19 @@ interface Props {
 }
 
 const SHAPES = shapes.territories as Record<string, { d: string; x: number; y: number; room: number }>;
-const REGION_SHAPES = shapes.regions as Record<string, { d: string }>;
+const REGION_SHAPES = shapes.regions as Record<string, { d: string; x: number; y: number }>;
+const WALLS = shapes.walls as { a: string; b: string; name: string; kind: string; d: string; marks: number[][]; label: { x: number; y: number } }[];
+const PEAK = 'M-5 3.5 L-1.5 -4 L0.5 -0.5 L2 -3 L5 3.5 Z';
+const TREE = 'M0 -5 L3.4 1 H1 V4 H-1 V1 H-3.4 Z';
+/** Where a region's name is lettered across the land, nudged clear of the busiest spots. */
+const REGION_NAME: Record<string, { dx: number; dy: number; rotate: number }> = {
+  north: { dx: 44, dy: 6, rotate: -58 },
+  gangetic: { dx: 6, dy: -28, rotate: 12 },
+  west: { dx: -6, dy: -52, rotate: -64 },
+  central: { dx: 0, dy: 34, rotate: -8 },
+  south: { dx: -4, dy: 40, rotate: -62 },
+  northeast: { dx: 34, dy: -46, rotate: -24 },
+};
 const { width: W, height: H } = shapes;
 const FULL: Box = [0, 0, W, H];
 const TOKEN_R = 11;
@@ -289,6 +301,16 @@ export default function Board(props: Props) {
         <pattern id="rain" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(20)">
           <line x1="7" y1="0" x2="7" y2="7" stroke="#20506e" strokeOpacity="0.25" strokeWidth="1.2" />
         </pattern>
+        <pattern id="waves" width="54" height="22" patternUnits="userSpaceOnUse">
+          <path d="M0 11 Q 13.5 4 27 11 T 54 11" fill="none" stroke="#ffffff" strokeOpacity="0.28" strokeWidth="1" />
+        </pattern>
+        <pattern id="peaks" width="22" height="16" patternUnits="userSpaceOnUse">
+          <path d="M3 13 L8 5 L11 9 L13 6 L18 13" fill="none" stroke="#3a332c" strokeOpacity="0.28" strokeWidth="1" strokeLinejoin="round" />
+        </pattern>
+        <radialGradient id="vignette" cx="50%" cy="50%" r="72%">
+          <stop offset="0.72" stopColor="#12323f" stopOpacity="0" />
+          <stop offset="1" stopColor="#12323f" stopOpacity="0.22" />
+        </radialGradient>
         <filter id="landShadow" x="-10%" y="-10%" width="120%" height="120%">
           <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#1c3d4d" floodOpacity="0.3" />
         </filter>
@@ -300,6 +322,25 @@ export default function Board(props: Props) {
       </defs>
 
       <rect width={W} height={H} fill="url(#sea)" />
+      <rect width={W} height={H} fill="url(#waves)" />
+      <rect width={W} height={H} fill="url(#vignette)" />
+      <g className="seas" aria-hidden="true">
+        <text x="58" y="840" transform="rotate(-78 58 840)">
+          ARABIAN SEA
+        </text>
+        <text x="640" y="800" transform="rotate(-18 640 800)">
+          BAY OF BENGAL
+        </text>
+        <text x="330" y="1118">
+          INDIAN OCEAN
+        </text>
+      </g>
+      <g className="compass" transform={`translate(74 ${H - 74})`} aria-hidden="true">
+        <circle r="30" />
+        <path d="M0 -40 L6.5 0 L0 40 L-6.5 0 Z" />
+        <path d="M-40 0 L0 -6.5 L40 0 L0 6.5 Z" className="minor" />
+        <text y="-46">N</text>
+      </g>
 
       {/* A white base under the land gives the whole country one soft shadow. */}
       <g filter="url(#landShadow)">
@@ -320,10 +361,47 @@ export default function Board(props: Props) {
         })}
       </g>
 
+      {/* Mountain country is textured with peaks, so the terrain reads at a glance. */}
+      <g className="terrain" aria-hidden="true">
+        {TERRITORIES.filter((t) => t.mountain).map((t) => (
+          <path key={t.id} d={SHAPES[t.id].d} fill="url(#peaks)" />
+        ))}
+      </g>
+
       {/* One coloured line per region, clipped to its own side of the border. */}
       <g className="regions">
         {REGIONS.map((r) => (
           <path key={r.id} d={REGION_SHAPES[r.id].d} clipPath={`url(#clip-${r.id})`} stroke={REGION_LINE[r.id]} />
+        ))}
+      </g>
+
+      {/* Each region's name, lettered faintly across its land. */}
+      <g className="regionnames" aria-hidden="true">
+        {REGIONS.map((r) => {
+          const at = REGION_NAME[r.id] ?? { dx: 0, dy: 0, rotate: 0 };
+          const x = REGION_SHAPES[r.id].x + at.dx;
+          const y = REGION_SHAPES[r.id].y + at.dy;
+          return (
+            <text key={r.id} x={x} y={y} fill={REGION_LINE[r.id]} transform={`rotate(${at.rotate} ${x} ${y})`}>
+              {r.name.toUpperCase()}
+            </text>
+          );
+        })}
+      </g>
+
+      {/* Walls: ranges and forest along a border that armies cannot cross. */}
+      <g className="walls">
+        {WALLS.map((w) => (
+          <g key={w.a + w.b} className={w.kind}>
+            <title>{`${w.name}: cannot be crossed`}</title>
+            <path className="wallline" d={w.d} />
+            {w.marks.map(([x, y], i) => (
+              <path key={i} className="glyph" d={w.kind === 'forest' ? TREE : PEAK} transform={`translate(${x} ${y - 2})`} />
+            ))}
+            <text x={w.label.x} y={w.label.y - 9}>
+              {w.name}
+            </text>
+          </g>
         ))}
       </g>
 

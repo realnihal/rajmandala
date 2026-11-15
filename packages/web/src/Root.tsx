@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HotSeat } from './App';
 import { OnlineRoom } from './Online';
+import { Brand, MenuShell } from './Menu';
 import { Rules } from './Rules';
 import { apiUrl, saveName, savedName } from './net';
 
@@ -76,9 +77,13 @@ function Home() {
   }
 
   return (
-    <main className="newgame home">
-      <h1>Rajmandala</h1>
-      <p className="lede">A game of conquest on the map of India, for 2 to 6 players.</p>
+    <MenuShell className="home">
+      <Brand />
+      <ul className="points">
+        <li>The real map of India, in 43 territories</li>
+        <li>Online with friends, or on one screen</li>
+        <li>Computer players fill empty seats</li>
+      </ul>
 
       <section>
         <h2>Play online</h2>
@@ -132,6 +137,6 @@ function Home() {
         How to play
       </button>
       {rules && <Rules onClose={() => setRules(false)} />}
-    </main>
+    </MenuShell>
   );
 }

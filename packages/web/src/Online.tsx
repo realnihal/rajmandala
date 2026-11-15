@@ -4,6 +4,7 @@ import { TURN_SECONDS } from '@rajmandala/server';
 import type { RoomOptions, ServerMsg } from '@rajmandala/server';
 import { Game, VICTORY_TEXT, colorOf } from './App';
 import type { GameUpdate } from './App';
+import { MenuShell } from './Menu';
 import { guestSlot } from './Root';
 import { apiUrl, identityKey, openRoom, saveName, savedName } from './net';
 import type { NetStatus, RoomSocket } from './net';
@@ -67,7 +68,7 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
 
   if (!entered) {
     return (
-      <main className="newgame home">
+      <MenuShell className="home">
         <h1>Join room {code}</h1>
         <section>
           <form
@@ -87,25 +88,25 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
             </button>
           </form>
         </section>
-      </main>
+      </MenuShell>
     );
   }
   if (missing) {
     return (
-      <main className="newgame home">
+      <MenuShell className="home">
         <h1>Room not found</h1>
         <p className="lede">There is no room with the code {code}. It may have been mistyped.</p>
         <button onClick={onExit}>Back to start</button>
-      </main>
+      </MenuShell>
     );
   }
   if (!state) {
     return (
-      <main className="newgame home">
+      <MenuShell className="home">
         <h1>Room {code}</h1>
         <p className="lede">{status === 'reconnecting' ? 'Reconnecting…' : 'Connecting…'}</p>
         <button onClick={onExit}>Cancel</button>
-      </main>
+      </MenuShell>
     );
   }
 
@@ -185,7 +186,7 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
   }
 
   return (
-    <main className="newgame lobby">
+    <MenuShell className="lobby">
       {banner}
       <h1>Room {room.code}</h1>
       <p className="lede">Share the link or the code. The game starts when the host is ready.</p>
@@ -314,6 +315,6 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
       >
         Leave room
       </button>
-    </main>
+    </MenuShell>
   );
 }

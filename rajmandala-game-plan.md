@@ -10,6 +10,13 @@ Contents: [1. The map](#1-the-map) · [2. The rules](#2-the-rules) · [3. Archit
 
 ## 1. The map
 
+> **Current map (supersedes the tables below where they differ).** The live map has **43 territories** and is defined by `packages/engine/src/map.json`. Two changes were adopted after bot simulations of several variants:
+>
+> - **Bengal is split.** North Bengal (Darjeeling, Jalpaiguri, Cooch Behar: the Siliguri corridor) is its own territory in the Northeast, and is the only land route into that region, from Bihar or Bengal. The Northeast now has 9 territories.
+> - **Four borders cannot be crossed,** because a range or forest stands on them: Purvanchal–Chhattisgarh (Kaimur Hills), Awadh–Malwa (Chambal Ravines), Gujarat Plains–Desh (Satpura Range) and Chhattisgarh–Telangana (Dandakaranya Forest). They are drawn on the board and give the exposed Central Heartland some shelter.
+>
+> In 500 simulated games per table size, neither change lengthened games, the walls modestly helped the Central Heartland, and nothing tested removed the Northeast's advantage as a starting corner.
+
 42 territories: 40 on the mainland in six regions, plus two island outposts. Territories follow state boundaries; the largest states are split along historical sub-regions and the smallest are merged, so that territories are of comparable size and every region has interesting borders.
 
 ### 1.1 Regions

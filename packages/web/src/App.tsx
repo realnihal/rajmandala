@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
+  RULES_VERSION,
   SAMRAJYA_TARGET,
+  TERRITORIES,
   WILD_CARDS,
   applyAction,
   bestSet,
@@ -21,6 +23,7 @@ import {
 import type { Action, CardId, GameEvent, GameState, GameView, PlayerId, TerritoryId, VictoryMode } from '@rajmandala/engine';
 import type { ChatLine } from '@rajmandala/server';
 import Board from './Board';
+import { MenuShell } from './Menu';
 import { Rules } from './Rules';
 import { isMuted, play, setMuted } from './sound';
 import { describe } from './describe';
@@ -58,7 +61,7 @@ const PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0,
 
 const SAVE_KEY = 'rajmandala-hotseat-v1';
 export const VICTORY_TEXT: Record<VictoryMode, [string, string]> = {
-  samrajya: ['Samrajya', `Hold ${SAMRAJYA_TARGET} of 42 territories at the end of your turn`],
+  samrajya: ['Samrajya', `Hold ${SAMRAJYA_TARGET} of ${TERRITORIES.length} territories at the end of your turn`],
   digvijaya: ['Digvijaya', 'Eliminate every other player'],
   capitals: ['Capitals', 'Hold your own capital and two enemy capitals at the end of your turn'],
 };
@@ -67,7 +70,9 @@ const SUIT_LABEL: Record<string, string> = { padati: 'Padati', ashva: 'Ashva', g
 function load(): Saved | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    return raw ? (JSON.parse(raw) as Saved) : null;
+    const saved = raw ? (JSON.parse(raw) as Saved) : null;
+    // A game saved on an older map cannot be continued.
+    return saved && saved.game.rulesVersion === RULES_VERSION ? saved : null;
   } catch {
     return null;
   }
@@ -170,7 +175,7 @@ function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () 
   }
 
   return (
-    <main className="newgame">
+    <MenuShell>
       <button className="link" onClick={onBack}>
         ← Back
       </button>
@@ -228,7 +233,7 @@ function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () 
       <button className="primary big" onClick={start}>
         Start game
       </button>
-    </main>
+    </MenuShell>
   );
 }
 

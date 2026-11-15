@@ -30,9 +30,9 @@ describe('map', () => {
   it('passes validation', () => {
     expect(validateMap()).toEqual([]);
   });
-  it('has 42 territories, 81 land borders, 6 sea routes and six regions', () => {
-    expect(TERRITORIES).toHaveLength(42);
-    expect(LAND_EDGES).toHaveLength(81);
+  it('has 43 territories, 79 land borders, 6 sea routes and six regions', () => {
+    expect(TERRITORIES).toHaveLength(43);
+    expect(LAND_EDGES).toHaveLength(79);
     expect(SEA_EDGES).toHaveLength(6);
     expect(REGIONS.map((r) => [r.id, r.territories.length, r.bonus])).toEqual([
       ['north', 7, 4],
@@ -40,7 +40,7 @@ describe('map', () => {
       ['west', 5, 3],
       ['central', 6, 7],
       ['south', 8, 5],
-      ['northeast', 8, 3],
+      ['northeast', 9, 3],
     ]);
   });
 });
@@ -52,10 +52,10 @@ describe('setup (2.2)', () => {
     if (n === 2) {
       expect(counts).toEqual([14, 14]);
       const neutral = TERRITORY_IDS.filter((t) => s0.territories[t].owner === 'neutral');
-      expect(neutral).toHaveLength(14);
+      expect(neutral).toHaveLength(15);
       expect(neutral.every((t) => s0.territories[t].armies === 2)).toBe(true);
     } else {
-      expect(counts.reduce((a, b) => a + b)).toBe(42);
+      expect(counts.reduce((a, b) => a + b)).toBe(43);
       expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
       // Leftover territories go to the players last in turn order.
       expect(counts).toEqual([...counts].sort((a, b) => a - b));
@@ -65,7 +65,7 @@ describe('setup (2.2)', () => {
     s.turnOrder.forEach((p, i) => expect(armiesOf(s, p)).toBe(START[n] + i * SEAT_COMPENSATION));
     expect(s.phase).toBe('reinforce');
     expect(s.round).toBe(1);
-    expect(s.deck).toHaveLength(44);
+    expect(s.deck).toHaveLength(45);
   });
 
   it('is reproducible from the seed', () => {
@@ -107,7 +107,7 @@ describe('setup (2.2)', () => {
     const v = viewFor(s, s.turnOrder[1]) as unknown as Record<string, unknown>;
     expect(v.rng).toBeUndefined();
     expect(v.deck).toBeUndefined();
-    expect(v.deckCount).toBe(44);
+    expect(v.deckCount).toBe(45);
     const seen = viewFor(s, s.turnOrder[1]).players[s.turnOrder[0]];
     expect(seen.cards).toBeNull();
     expect(seen.cardCount).toBe(2);
@@ -186,7 +186,7 @@ describe('cards (2.8)', () => {
     const busy = applyAction(s, me, { type: 'endPhase' });
     expect(events(busy.events, 'cardDrawn')).toHaveLength(1);
     expect(busy.state.players[me].cards).toHaveLength(1);
-    expect(busy.state.deck).toHaveLength(43);
+    expect(busy.state.deck).toHaveLength(44);
   });
   it('reshuffles the discard pile when the deck is empty', () => {
     const { s, me } = board({ DEL: 5 }, { phase: 'fortify' });
@@ -194,7 +194,7 @@ describe('cards (2.8)', () => {
     s.discard = s.deck;
     s.deck = [];
     const r = applyAction(s, me, { type: 'endPhase' }).state;
-    expect(r.deck).toHaveLength(43);
+    expect(r.deck).toHaveLength(44);
     expect(r.discard).toHaveLength(0);
   });
 });
@@ -527,7 +527,7 @@ describe('whole games under random legal play', () => {
       cards += p.cards.length;
       if (!p.alive) expect(p.cards).toHaveLength(0);
     }
-    expect(cards).toBe(44);
+    expect(cards).toBe(45);
     expect(s.pendingReinforcements).toBeGreaterThanOrEqual(0);
     for (const t of TERRITORY_IDS) {
       const { owner, armies } = s.territories[t];
@@ -556,5 +556,20 @@ describe('whole games under random legal play', () => {
     let replay = createGame({ players: NAMES.slice(0, n), seed, victory: mode }).state;
     for (const [player, action] of log) replay = applyAction(replay, player, action).state;
     expect(replay).toEqual(s);
+  });
+});
+
+describe('the Siliguri corridor and the walls (map)', () => {
+  it('makes North Bengal the only way into the Northeast', () => {
+    const northeast = new Set(REGIONS.find((r) => r.id === 'northeast')!.territories);
+    const ways = LAND_EDGES.filter(([a, b]) => northeast.has(a) !== northeast.has(b)).map((e) => [...e].sort().join('-'));
+    expect(ways.sort()).toEqual(['BEN-NBN', 'BIH-NBN']);
+  });
+  it('cannot be crossed where a range or forest stands', () => {
+    const { s, me } = board({ PUR: 9, AWD: 9, GUJ: 9, TEL: 9 });
+    for (const [from, to] of [['PUR', 'CHH'], ['AWD', 'MAL'], ['GUJ', 'DSH'], ['TEL', 'CHH']]) {
+      expectRule(() => applyAction(s, me, { type: 'attack', from, to, dice: 1 }), 'not-adjacent');
+    }
+    applyAction(s, me, { type: 'attack', from: 'PUR', to: 'MHK', dice: 1 }); // the way round is open
   });
 });

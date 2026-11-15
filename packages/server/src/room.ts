@@ -1,4 +1,4 @@
-import { RuleError, applyAction, awaitedPlayers, botAction, createGame, currentPlayer, isTerritory, randomPlacement, viewFor } from '@rajmandala/engine';
+import { RULES_VERSION, RuleError, applyAction, awaitedPlayers, botAction, createGame, currentPlayer, isTerritory, randomPlacement, viewFor } from '@rajmandala/engine';
 import type { Action, GameEvent, GameState, PlayerId } from '@rajmandala/engine';
 import { PROTOCOL_VERSION, TURN_SECONDS } from './protocol';
 import type { ChatLine, ClientMsg, RoomOptions, RoomStatus, RoomView, ServerMsg } from './protocol';
@@ -115,6 +115,14 @@ export class RoomCore {
   private conns = new Map<string, PlayerId | null>();
 
   constructor(public data: RoomData) {
+    // A game begun on an older map or rule set cannot continue: send the table back to the lobby.
+    if (data.game && data.game.rulesVersion !== RULES_VERSION) {
+      data.game = null;
+      data.status = 'lobby';
+      data.deadline = null;
+      data.waitingOn = '';
+      for (const m of data.members) m.ready = m.key === '';
+    }
     // Rooms stored before these fields existed are brought up to date.
     data.options.turnSeconds ??= 0;
     data.chat ??= [];

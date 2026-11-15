@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { REGIONS, SAMRAJYA_TARGET } from '@rajmandala/engine';
+import { BASE_MAP, REGIONS, SAMRAJYA_TARGET, TERRITORIES } from '@rajmandala/engine';
 
 /** The rules of the game on one page, shown over the board. */
 export function Rules({ onClose }: { onClose: () => void }) {
@@ -21,7 +21,7 @@ export function Rules({ onClose }: { onClose: () => void }) {
 
         <h2>Goal</h2>
         <p>
-          Conquer India. The default win is to hold <b>{SAMRAJYA_TARGET} of the 42 territories</b> at the end of your own turn. A room can
+          Conquer India. The default win is to hold <b>{SAMRAJYA_TARGET} of the {TERRITORIES.length} territories</b> at the end of your own turn. A room can
           instead be set to eliminating everyone, or to holding your capital and two enemy capitals.
         </p>
 
@@ -67,6 +67,12 @@ export function Rules({ onClose }: { onClose: () => void }) {
           </li>
           <li>
             <b>Capturing a capital</b> from the player who founded it adds 3 armies to the force that moves in.
+          </li>
+          <li>
+            <b>Ranges and forests</b> drawn along a border cannot be crossed: {(BASE_MAP.walls ?? []).map((w) => w.name).join(', ')}.
+          </li>
+          <li>
+            <b>The Siliguri corridor:</b> North Bengal is the only land route into the Northeast.
           </li>
           <li>
             <b>Sea routes</b> (dashed lines) connect the islands and some coasts as if they were neighbours.

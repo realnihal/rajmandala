@@ -143,7 +143,7 @@
   {
    "id": "BEN",
    "name": "Bengal",
-   "covers": "West Bengal",
+   "covers": "West Bengal south of the Siliguri corridor",
    "region": "gangetic",
    "mountain": false,
    "outpost": false,
@@ -319,6 +319,15 @@
    "mountain": false,
    "outpost": false,
    "suit": "padati"
+  },
+  {
+   "id": "NBN",
+   "name": "North Bengal",
+   "covers": "Darjeeling, Jalpaiguri, Cooch Behar: the Siliguri corridor",
+   "region": "northeast",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
   },
   {
    "id": "SIK",
@@ -517,10 +526,6 @@
    "MHK"
   ],
   [
-   "PUR",
-   "CHH"
-  ],
-  [
    "JHA",
    "CHH"
   ],
@@ -531,14 +536,6 @@
   [
    "BEN",
    "ODI"
-  ],
-  [
-   "BEN",
-   "SIK"
-  ],
-  [
-   "BEN",
-   "ASM"
   ],
   [
    "THR",
@@ -567,10 +564,6 @@
   [
    "GUJ",
    "MAL"
-  ],
-  [
-   "GUJ",
-   "DSH"
   ],
   [
    "KON",
@@ -611,10 +604,6 @@
   [
    "VID",
    "DSH"
-  ],
-  [
-   "CHH",
-   "TEL"
   ],
   [
    "ODI",
@@ -733,8 +722,20 @@
    "GUJ"
   ],
   [
-   "AWD",
-   "MAL"
+   "NBN",
+   "SIK"
+  ],
+  [
+   "NBN",
+   "ASM"
+  ],
+  [
+   "NBN",
+   "BIH"
+  ],
+  [
+   "NBN",
+   "BEN"
   ]
  ],
  "sea": [
@@ -762,5 +763,31 @@
    "AND",
    "TON"
   ]
+ ],
+ "walls": [
+  {
+   "a": "PUR",
+   "b": "CHH",
+   "name": "Kaimur Hills",
+   "kind": "range"
+  },
+  {
+   "a": "AWD",
+   "b": "MAL",
+   "name": "Chambal Ravines",
+   "kind": "range"
+  },
+  {
+   "a": "GUJ",
+   "b": "DSH",
+   "name": "Satpura Range",
+   "kind": "range"
+  },
+  {
+   "a": "CHH",
+   "b": "TEL",
+   "name": "Dandakaranya Forest",
+   "kind": "forest"
+  }
  ]
 }
