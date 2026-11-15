@@ -9,15 +9,24 @@ export const REGION_LINE: Record<string, string> = {
 };
 export const OUTPOST_LINE = '#55617a';
 
-/** Colour-blind-safe player colours (Okabe–Ito), with a readable text colour for each. */
-export const PLAYER_COLORS: { fill: string; text: string }[] = [
-  { fill: '#0072b2', text: '#ffffff' },
-  { fill: '#d55e00', text: '#ffffff' },
-  { fill: '#009e73', text: '#ffffff' },
-  { fill: '#cc79a7', text: '#1d1a17' },
-  { fill: '#e69f00', text: '#1d1a17' },
-  { fill: '#56b4e9', text: '#1d1a17' },
+/**
+ * The colours players choose from. The first six are the colour-blind-safe Okabe–Ito set;
+ * violet and olive are added so there is still a choice at a full table.
+ */
+export const PLAYER_COLORS: { name: string; fill: string; text: string }[] = [
+  { name: 'Blue', fill: '#0072b2', text: '#ffffff' },
+  { name: 'Vermilion', fill: '#d55e00', text: '#ffffff' },
+  { name: 'Green', fill: '#009e73', text: '#ffffff' },
+  { name: 'Pink', fill: '#cc79a7', text: '#1d1a17' },
+  { name: 'Orange', fill: '#e69f00', text: '#1d1a17' },
+  { name: 'Sky', fill: '#56b4e9', text: '#1d1a17' },
+  { name: 'Violet', fill: '#6f4aa5', text: '#ffffff' },
+  { name: 'Olive', fill: '#8f8a1c', text: '#ffffff' },
 ];
+/** A player's colour: the one they chose, or the one their seat has always had. */
+export function colorIndex(colors: Record<string, number> | undefined, player: string): number {
+  return colors?.[player] ?? Number(player.slice(1)) - 1;
+}
 export const NEUTRAL_COLOR = { fill: '#9a948b', text: '#ffffff' };
 
 /** Hand adjustments to where a territory's army token and name sit, in board pixels. */

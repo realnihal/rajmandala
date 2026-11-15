@@ -1,7 +1,10 @@
 import type { Action, GameEvent, GameView, PlayerId, VictoryMode } from '@rajmandala/engine';
 
 /** Bumped whenever a message changes shape; an old client is told to reload. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
+
+/** How many colours a player can choose from. The colours themselves belong to the screen. */
+export const COLOR_COUNT = 8;
 
 export interface RoomOptions {
   victory: VictoryMode;
@@ -31,6 +34,8 @@ export interface MemberView {
   online: boolean;
   /** True for a computer player, and for a seat a bot is minding for an absent player. */
   bot: boolean;
+  /** Which of the colours this player has chosen; no two players in a room share one. */
+  color: number;
 }
 
 export interface RoomView {
@@ -45,6 +50,7 @@ export type ClientMsg =
   | { t: 'hello'; v: number; key: string; name: string }
   | { t: 'rename'; name: string }
   | { t: 'ready'; ready: boolean }
+  | { t: 'color'; color: number }
   | { t: 'options'; options: RoomOptions }
   | { t: 'kick'; id: PlayerId }
   | { t: 'addBot' }

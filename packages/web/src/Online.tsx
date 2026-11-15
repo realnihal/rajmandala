@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, PlayerId, VictoryMode } from '@rajmandala/engine';
 import { TURN_SECONDS } from '@rajmandala/server';
 import type { RoomOptions, ServerMsg } from '@rajmandala/server';
-import { Game, VICTORY_TEXT, colorOf } from './App';
+import { Game, VICTORY_TEXT } from './App';
 import type { GameUpdate } from './App';
 import { MenuShell } from './Menu';
 import { guestSlot } from './Root';
+import { PLAYER_COLORS } from './theme';
 import { apiUrl, identityKey, openRoom, saveName, savedName } from './net';
 import type { NetStatus, RoomSocket } from './net';
 
@@ -114,6 +115,7 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
   const { room, you } = state;
   const isHost = you !== null && you === room.hostId;
   const names = Object.fromEntries(room.members.map((m) => [m.id, m.bot ? `${m.name} (bot)` : m.name])) as Record<PlayerId, string>;
+  const colors = Object.fromEntries(room.members.map((m) => [m.id, m.color])) as Record<PlayerId, number>;
   const offline = room.members.filter((m) => !m.online && !m.bot).map((m) => m.name);
   const link = (
     <p className={`net ${status}`} role="status">
@@ -132,6 +134,7 @@ export function OnlineRoom({ code, onExit }: { code: string; onExit: () => void 
     <Game
       key={games}
       names={names}
+      colors={colors}
       update={update}
       viewer={you}
       send={(_player: PlayerId, action: Action) => {
@@ -211,7 +214,7 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
         <ul className="seats">
           {room.members.map((m) => (
             <li key={m.id} className={m.online ? '' : 'away'}>
-              <span className="dot" style={{ background: colorOf(m.id).fill }} />
+              <span className="dot" style={{ background: PLAYER_COLORS[m.color]?.fill }} />
               <span className="who">
                 {m.name}
                 {m.id === you && ' (you)'}
@@ -237,6 +240,27 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
             </li>
           ))}
         </ul>
+        {me && (
+          <div className="row colours" role="group" aria-label="Your colour">
+            <span>Your colour</span>
+            {PLAYER_COLORS.map((c, i) => {
+              const holder = room.members.find((m) => m.color === i);
+              const mine = holder?.id === me.id;
+              return (
+                <button
+                  key={c.name}
+                  className={`swatch ${mine ? 'on' : ''}`}
+                  style={{ background: c.fill }}
+                  disabled={holder !== undefined && !mine}
+                  aria-pressed={mine}
+                  aria-label={holder && !mine ? `${c.name}, taken by ${holder.name}` : c.name}
+                  title={holder && !mine ? `${c.name}: taken by ${holder.name}` : c.name}
+                  onClick={() => send.send({ t: 'color', color: i })}
+                />
+              );
+            })}
+          </div>
+        )}
         {isHost && room.members.length < room.options.seats && (
           <button onClick={() => send.send({ t: 'addBot' })}>Add a computer player</button>
         )}

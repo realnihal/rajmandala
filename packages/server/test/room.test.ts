@@ -349,3 +349,28 @@ describe('watching an attack being lined up', () => {
     expect(t.send(`c${me[1]}`, { t: 'aim', from: 'NOPE', to: 'HAR' }).send[0].msg).toMatchObject({ t: 'error' });
   });
 });
+
+describe('colours', () => {
+  it('gives every player a different colour and lets them change to a free one before the game', () => {
+    const t = table();
+    t.join('a', 1);
+    t.join('b', 2);
+    t.send('a', { t: 'addBot' });
+    const colours = () => t.state('a').room.members.map((m) => m.color);
+    expect(new Set(colours()).size).toBe(3);
+
+    t.send('b', { t: 'color', color: 6 });
+    expect(colours()[1]).toBe(6);
+    expect(t.send('a', { t: 'color', color: 6 }).send[0].msg).toMatchObject({ t: 'error', code: 'taken' });
+    expect(t.send('a', { t: 'color', color: 99 }).send[0].msg).toMatchObject({ t: 'error' });
+    // A colour someone gave up is free again, and a newcomer never gets one in use.
+    t.send('a', { t: 'color', color: 1 });
+    t.join('c', 3);
+    expect(new Set(t.state('c').room.members.map((m) => m.color)).size).toBe(4);
+
+    t.send('b', { t: 'ready', ready: true });
+    t.send('c', { t: 'ready', ready: true });
+    t.send('a', { t: 'start' });
+    expect(t.send('b', { t: 'color', color: 7 }).send[0].msg).toMatchObject({ t: 'error', code: 'not-allowed' });
+  });
+});

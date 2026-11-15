@@ -27,7 +27,7 @@ import { MenuShell } from './Menu';
 import { Rules } from './Rules';
 import { isMuted, play, setMuted } from './sound';
 import { describe } from './describe';
-import { NEUTRAL_COLOR, PLAYER_COLORS } from './theme';
+import { NEUTRAL_COLOR, PLAYER_COLORS, colorIndex } from './theme';
 
 type DiceEvent = Extract<GameEvent, { type: 'diceRolled' }>;
 interface Saved {
@@ -35,6 +35,8 @@ interface Saved {
   names: Record<PlayerId, string>;
   /** Identifies this game, so a new game gets a fresh screen. */
   id?: string;
+  /** The colour each player chose. */
+  colors?: Record<PlayerId, number>;
   /** Place starting armies at random as soon as every capital is chosen. */
   autoPlace?: boolean;
 }
@@ -87,7 +89,9 @@ function save(data: Saved | null): void {
 }
 
 const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)];
-export const colorOf = (owner: string) => (owner === 'neutral' ? NEUTRAL_COLOR : PLAYER_COLORS[Number(owner.slice(1)) - 1]);
+/** Looks up the colour a territory's owner plays in, given the colours the players chose. */
+export const colorLookup = (colors?: Record<PlayerId, number>) => (owner: string) =>
+  owner === 'neutral' ? NEUTRAL_COLOR : (PLAYER_COLORS[colorIndex(colors, owner)] ?? PLAYER_COLORS[0]);
 
 /** A game on one shared screen: the rules run in this browser and every hand is visible to the screen. */
 export function HotSeat({ onExit }: { onExit: () => void }) {
@@ -144,6 +148,7 @@ export function HotSeat({ onExit }: { onExit: () => void }) {
       // battle animation in progress) would be thrown away and rebuilt.
       key={saved.id ?? saved.game.turnOrder.join()}
       names={saved.names}
+      colors={saved.colors}
       update={update}
       hotseat
       viewer={null}
@@ -165,13 +170,24 @@ function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () 
   const [names, setNames] = useState(['Asha', 'Bilal', 'Chitra', 'Dev', 'Esha', 'Farhan']);
   const [victory, setVictory] = useState<VictoryMode>('samrajya');
   const [quick, setQuick] = useState(true);
+  const [colors, setColors] = useState([0, 1, 2, 3, 4, 5]);
+
+  /** Moves a player on to the next colour nobody else at the table is using. */
+  function nextColor(i: number) {
+    const taken = new Set(colors.slice(0, count).filter((_, j) => j !== i));
+    let c = colors[i];
+    do c = (c + 1) % PLAYER_COLORS.length;
+    while (taken.has(c));
+    setColors(colors.map((x, j) => (j === i ? c : x)));
+  }
 
   function start() {
     const ids = Array.from({ length: count }, (_, i) => `p${i + 1}`);
     const nameMap = Object.fromEntries(ids.map((id, i) => [id, names[i].trim() || `Player ${i + 1}`]));
     const seed = crypto.getRandomValues(new Uint32Array(1))[0];
     const game = createGame({ players: ids, seed, victory }).state;
-    onStart({ id: crypto.randomUUID(), game, names: nameMap, autoPlace: quick });
+    const colorMap = Object.fromEntries(ids.map((id, i) => [id, colors[i]]));
+    onStart({ id: crypto.randomUUID(), game, names: nameMap, colors: colorMap, autoPlace: quick });
   }
 
   return (
@@ -194,7 +210,14 @@ function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () 
         <div className="names">
           {names.slice(0, count).map((n, i) => (
             <label key={i}>
-              <span className="dot" style={{ background: PLAYER_COLORS[i].fill }} />
+              <button
+                type="button"
+                className="swatch"
+                style={{ background: PLAYER_COLORS[colors[i]].fill }}
+                aria-label={`Player ${i + 1} colour: ${PLAYER_COLORS[colors[i]].name}. Change`}
+                title="Change colour"
+                onClick={() => nextColor(i)}
+              />
               <input
                 value={n}
                 maxLength={16}
@@ -204,6 +227,7 @@ function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () 
             </label>
           ))}
         </div>
+        <p className="hint">Click a colour to change it.</p>
         {count === 2 && <p className="hint">With two players, a third of the map starts as neutral garrisons.</p>}
       </section>
 
@@ -255,6 +279,8 @@ export interface GameProps {
   finished: ReactNode;
   /** Extra content at the top of the side panel, such as connection status. */
   banner?: ReactNode;
+  /** The colour each player chose. */
+  colors?: Record<PlayerId, number>;
   /** When the current turn is played automatically, on this device's clock; null if untimed. */
   deadline?: number | null;
   chat?: ChatLine[];
@@ -274,7 +300,8 @@ function formatLeft(ms: number): string {
 }
 
 export function Game(props: GameProps) {
-  const { names, update, hotseat = false, viewer, send, serverError, quit, finished, banner, deadline = null, chat, onChat, onSurrender, aim = null, onAim } = props;
+  const { names, update, hotseat = false, viewer, send, serverError, quit, finished, banner, deadline = null, chat, onChat, onSurrender, aim = null, onAim, colors } = props;
+  const colorOf = colorLookup(colors);
   const [game, setGame] = useState(update.view);
   const [log, setLog] = useState<string[]>([]);
   const [sel, setSel] = useState<{ from?: TerritoryId; to?: TerritoryId }>({});

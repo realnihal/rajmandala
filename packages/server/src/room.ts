@@ -1,6 +1,6 @@
 import { RULES_VERSION, RuleError, applyAction, awaitedPlayers, botAction, createGame, currentPlayer, isTerritory, randomPlacement, viewFor } from '@rajmandala/engine';
 import type { Action, GameEvent, GameState, PlayerId } from '@rajmandala/engine';
-import { PROTOCOL_VERSION, TURN_SECONDS } from './protocol';
+import { COLOR_COUNT, PROTOCOL_VERSION, TURN_SECONDS } from './protocol';
 import type { ChatLine, ClientMsg, RoomOptions, RoomStatus, RoomView, ServerMsg } from './protocol';
 
 /**
@@ -24,6 +24,8 @@ export interface Member {
   /** Turns in a row this player let the clock run out. */
   missed: number;
   lastChat: number;
+  /** Index of the colour this player plays in. */
+  color: number;
 }
 
 /** Everything that must survive a restart. Plain JSON. */
@@ -135,6 +137,8 @@ export class RoomCore {
       m.missed ??= 0;
       m.lastChat ??= 0;
     }
+    // Rooms from before colours could be chosen: keep the colour each seat always had.
+    for (const m of data.members) m.color ??= Number(m.id.slice(1)) - 1;
   }
 
   /** True when nobody is connected and nothing has happened for a long time. */
@@ -230,6 +234,13 @@ export class RoomCore {
         if (!me || d.status !== 'lobby') return this.reject(conn, 'not-allowed', 'Not possible now');
         me.ready = msg.ready === true;
         return this.changed(chance);
+      case 'color': {
+        if (!me || d.status !== 'lobby') return this.reject(conn, 'not-allowed', 'Colours are chosen before the game starts');
+        if (!Number.isInteger(msg.color) || msg.color < 0 || msg.color >= COLOR_COUNT) return this.reject(conn, 'bad-message', 'Unknown colour');
+        if (d.members.some((m) => m.id !== me.id && m.color === msg.color)) return this.reject(conn, 'taken', 'Another player has that colour');
+        me.color = msg.color;
+        return this.changed(chance);
+      }
       case 'options':
         if (!isHost || d.status !== 'lobby') return this.reject(conn, 'not-allowed', 'Only the host can change options before the game');
         if (!validOptions(msg.options)) return this.reject(conn, 'bad-options', 'Invalid options');
@@ -376,7 +387,9 @@ export class RoomCore {
     const d = this.data;
     const taken = new Set(d.members.map((m) => m.id));
     const id = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'].find((x) => !taken.has(x))!;
-    const member: Member = { id, ...who, joined: d.joins++, recent: [], missed: 0, lastChat: 0 };
+    const used = new Set(d.members.map((m) => m.color));
+    const color = Array.from({ length: COLOR_COUNT }, (_, i) => i).find((i) => !used.has(i)) ?? 0;
+    const member: Member = { id, ...who, joined: d.joins++, recent: [], missed: 0, lastChat: 0, color };
     d.members.push(member);
     d.members.sort((a, b) => a.id.localeCompare(b.id));
     return member;
@@ -432,7 +445,7 @@ export class RoomCore {
       status: d.status,
       hostId: d.hostId,
       options: d.options,
-      members: d.members.map((m) => ({ id: m.id, name: m.name, ready: m.ready, online: online.has(m.id) || m.key === '', bot: m.bot })),
+      members: d.members.map((m) => ({ id: m.id, name: m.name, ready: m.ready, online: online.has(m.id) || m.key === '', bot: m.bot, color: m.color })),
     };
   }
 

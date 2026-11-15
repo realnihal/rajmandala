@@ -327,3 +327,11 @@ button.big { width: 100%; padding: 0.8rem; font-size: 1.05rem; }
   .mapart { right: 50%; transform: translate(50%, -50%) rotate(4deg); max-width: 130vw; height: 100vh; opacity: 0.22; }
   .menu .newgame { padding: 2rem 1rem 2.5rem; max-width: 34rem; margin: 0 auto; box-sizing: border-box; }
 }
+
+/* ---------- colour pickers */
+.swatch, .menu button.swatch { width: 1.7rem; height: 1.7rem; padding: 0; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.25); flex: none; }
+.swatch.on, .menu button.swatch.on { box-shadow: 0 0 0 3px #2a2520; }
+.swatch:disabled, .menu button.swatch:disabled { opacity: 0.22; cursor: not-allowed; }
+.names label .swatch { margin-right: 0.5rem; }
+.colours { margin-top: 0.8rem; gap: 0.45rem; }
+.colours > span { margin-right: 0.3rem; font-size: 0.88rem; color: #5b4a36; }
