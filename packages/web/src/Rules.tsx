@@ -79,7 +79,7 @@ export function Rules({ onClose }: { onClose: () => void }) {
             </>
           ) : (
             <li>
-              <b>Sanjay Gandhi National Park</b> belongs to nobody and cannot be crossed, so Borivali and Mulund do not connect.
+              <b>Sanjay Gandhi National Park</b> cannot be crossed: Mulund does not connect to Borivali, Kandivali, Malad or Goregaon. The Vashi and Airoli bridges join the city to Navi Mumbai.
             </li>
           )}
           <li>

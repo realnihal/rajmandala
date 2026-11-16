@@ -8,7 +8,7 @@
   {
    "id": "central",
    "name": "Central Mumbai",
-   "bonus": 6
+   "bonus": 4
   },
   {
    "id": "western",
@@ -19,32 +19,37 @@
    "id": "eastern",
    "name": "Eastern Suburbs",
    "bonus": 5
+  },
+  {
+   "id": "navi",
+   "name": "Navi Mumbai",
+   "bonus": 3
   }
  ],
  "territories": [
   {
    "id": "COL",
-   "name": "Colaba",
-   "covers": "Colaba",
+   "name": "Colaba–Fort",
    "region": "south",
+   "covers": "Colaba–Fort",
    "mountain": false,
    "outpost": false,
    "suit": "padati"
   },
   {
-   "id": "FOR",
-   "name": "Fort",
-   "covers": "Fort",
+   "id": "DON",
+   "name": "Dongri",
    "region": "south",
+   "covers": "Dongri",
    "mountain": false,
    "outpost": false,
    "suit": "ashva"
   },
   {
-   "id": "MAR",
-   "name": "Marine Lines",
-   "covers": "Marine Lines",
+   "id": "KAL",
+   "name": "Kalbadevi",
    "region": "south",
+   "covers": "Kalbadevi",
    "mountain": false,
    "outpost": false,
    "suit": "gaja"
@@ -52,8 +57,8 @@
   {
    "id": "MAL",
    "name": "Malabar Hill",
-   "covers": "Malabar Hill",
    "region": "south",
+   "covers": "Malabar Hill",
    "mountain": false,
    "outpost": false,
    "suit": "padati"
@@ -61,35 +66,8 @@
   {
    "id": "BYC",
    "name": "Byculla",
+   "region": "south",
    "covers": "Byculla",
-   "region": "south",
-   "mountain": false,
-   "outpost": false,
-   "suit": "ashva"
-  },
-  {
-   "id": "MAZ",
-   "name": "Mazgaon",
-   "covers": "Mazgaon",
-   "region": "south",
-   "mountain": false,
-   "outpost": false,
-   "suit": "gaja"
-  },
-  {
-   "id": "WOR",
-   "name": "Worli",
-   "covers": "Worli",
-   "region": "central",
-   "mountain": false,
-   "outpost": false,
-   "suit": "padati"
-  },
-  {
-   "id": "LPR",
-   "name": "Lower Parel",
-   "covers": "Lower Parel",
-   "region": "central",
    "mountain": false,
    "outpost": false,
    "suit": "ashva"
@@ -97,134 +75,134 @@
   {
    "id": "PAR",
    "name": "Parel–Sewri",
-   "covers": "Parel–Sewri",
    "region": "central",
+   "covers": "Parel–Sewri",
    "mountain": false,
    "outpost": false,
    "suit": "gaja"
   },
   {
-   "id": "DAD",
-   "name": "Dadar",
-   "covers": "Dadar",
+   "id": "MAT",
+   "name": "Matunga–Sion",
    "region": "central",
+   "covers": "Matunga–Sion",
    "mountain": false,
    "outpost": false,
    "suit": "padati"
   },
   {
-   "id": "MAH",
-   "name": "Mahim",
-   "covers": "Mahim",
+   "id": "WOR",
+   "name": "Worli",
    "region": "central",
+   "covers": "Worli",
    "mountain": false,
    "outpost": false,
    "suit": "ashva"
   },
   {
-   "id": "DHA",
-   "name": "Dharavi–Sion",
-   "covers": "Dharavi–Sion",
+   "id": "DAD",
+   "name": "Dadar–Mahim",
    "region": "central",
+   "covers": "Dadar–Mahim",
    "mountain": false,
    "outpost": false,
    "suit": "gaja"
-  },
-  {
-   "id": "WAD",
-   "name": "Wadala",
-   "covers": "Wadala",
-   "region": "central",
-   "mountain": false,
-   "outpost": false,
-   "suit": "padati"
   },
   {
    "id": "BAN",
    "name": "Bandra",
-   "covers": "Bandra",
    "region": "western",
+   "covers": "Bandra",
    "mountain": false,
    "outpost": false,
-   "suit": "ashva"
+   "suit": "padati"
   },
   {
    "id": "SAN",
    "name": "Santacruz",
-   "covers": "Santacruz",
    "region": "western",
+   "covers": "Santacruz",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "JUH",
+   "name": "Juhu–Versova",
+   "region": "western",
+   "covers": "Juhu–Versova",
    "mountain": false,
    "outpost": false,
    "suit": "gaja"
-  },
-  {
-   "id": "VPJ",
-   "name": "Juhu–Vile Parle",
-   "covers": "Juhu–Vile Parle",
-   "region": "western",
-   "mountain": false,
-   "outpost": false,
-   "suit": "padati"
   },
   {
    "id": "AND",
    "name": "Andheri",
-   "covers": "Andheri",
    "region": "western",
+   "covers": "Andheri",
    "mountain": false,
    "outpost": false,
-   "suit": "ashva"
+   "suit": "padati"
   },
   {
    "id": "GOR",
    "name": "Goregaon",
+   "region": "western",
    "covers": "Goregaon",
-   "region": "western",
-   "mountain": false,
-   "outpost": false,
-   "suit": "gaja"
-  },
-  {
-   "id": "MLD",
-   "name": "Malad",
-   "covers": "Malad",
-   "region": "western",
-   "mountain": false,
-   "outpost": false,
-   "suit": "padati"
-  },
-  {
-   "id": "KAN",
-   "name": "Kandivali",
-   "covers": "Kandivali",
-   "region": "western",
    "mountain": false,
    "outpost": false,
    "suit": "ashva"
   },
   {
-   "id": "BOR",
-   "name": "Borivali",
-   "covers": "Borivali",
+   "id": "MLD",
+   "name": "Malad",
    "region": "western",
+   "covers": "Malad",
    "mountain": false,
    "outpost": false,
    "suit": "gaja"
   },
   {
-   "id": "DAH",
-   "name": "Dahisar",
-   "covers": "Dahisar",
+   "id": "KAN",
+   "name": "Kandivali",
    "region": "western",
+   "covers": "Kandivali",
    "mountain": false,
    "outpost": false,
    "suit": "padati"
   },
   {
+   "id": "BOR",
+   "name": "Borivali",
+   "region": "western",
+   "covers": "Borivali",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "DAH",
+   "name": "Dahisar",
+   "region": "western",
+   "covers": "Dahisar",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
    "id": "KUR",
    "name": "Kurla",
-   "covers": "Kurla",
    "region": "eastern",
+   "covers": "Kurla",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "TRO",
+   "name": "Mankhurd–Trombay",
+   "region": "eastern",
+   "covers": "Mankhurd–Trombay",
    "mountain": false,
    "outpost": false,
    "suit": "ashva"
@@ -232,62 +210,128 @@
   {
    "id": "CHE",
    "name": "Chembur",
-   "covers": "Chembur",
    "region": "eastern",
+   "covers": "Chembur",
    "mountain": false,
    "outpost": false,
    "suit": "gaja"
   },
   {
-   "id": "TRO",
-   "name": "Trombay–Mankhurd",
-   "covers": "Trombay–Mankhurd",
+   "id": "GHA",
+   "name": "Ghatkopar",
    "region": "eastern",
+   "covers": "Ghatkopar",
    "mountain": false,
    "outpost": false,
    "suit": "padati"
   },
   {
-   "id": "GHA",
-   "name": "Ghatkopar",
-   "covers": "Ghatkopar",
+   "id": "BHA",
+   "name": "Bhandup–Powai",
    "region": "eastern",
+   "covers": "Bhandup–Powai",
    "mountain": false,
    "outpost": false,
    "suit": "ashva"
   },
   {
-   "id": "POW",
-   "name": "Powai",
-   "covers": "Powai",
+   "id": "MUL",
+   "name": "Mulund",
    "region": "eastern",
-   "mountain": true,
+   "covers": "Mulund",
+   "mountain": false,
    "outpost": false,
    "suit": "gaja"
   },
   {
-   "id": "VIK",
-   "name": "Vikhroli–Bhandup",
-   "covers": "Vikhroli–Bhandup",
-   "region": "eastern",
+   "id": "AIR",
+   "name": "Airoli",
+   "region": "navi",
+   "covers": "Airoli",
    "mountain": false,
    "outpost": false,
    "suit": "padati"
   },
   {
-   "id": "MUL",
-   "name": "Mulund",
-   "covers": "Mulund",
-   "region": "eastern",
+   "id": "GHN",
+   "name": "Ghansoli",
+   "region": "navi",
+   "covers": "Ghansoli",
    "mountain": false,
    "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "KOP",
+   "name": "Kopar Khairane",
+   "region": "navi",
+   "covers": "Kopar Khairane",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "VSH",
+   "name": "Vashi",
+   "region": "navi",
+   "covers": "Vashi",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "NER",
+   "name": "Nerul",
+   "region": "navi",
+   "covers": "Nerul",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "BEL",
+   "name": "Belapur",
+   "region": "navi",
+   "covers": "Belapur",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "MIR",
+   "name": "Mira–Bhayandar",
+   "region": "western",
+   "covers": "Mira–Bhayandar",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "ELE",
+   "name": "Elephanta Island",
+   "region": null,
+   "covers": "Elephanta Island",
+   "mountain": false,
+   "outpost": true,
    "suit": "ashva"
   }
  ],
  "land": [
   [
+   "AIR",
+   "GHN"
+  ],
+  [
+   "AND",
+   "BHA"
+  ],
+  [
    "AND",
    "GOR"
+  ],
+  [
+   "AND",
+   "JUH"
   ],
   [
    "AND",
@@ -295,31 +339,39 @@
   ],
   [
    "AND",
-   "POW"
-  ],
-  [
-   "AND",
    "SAN"
   ],
   [
-   "AND",
-   "VPJ"
+   "BAN",
+   "DAD"
   ],
   [
    "BAN",
-   "DHA"
-  ],
-  [
-   "BAN",
-   "MAH"
+   "JUH"
   ],
   [
    "BAN",
    "SAN"
   ],
   [
-   "BAN",
-   "VPJ"
+   "BEL",
+   "NER"
+  ],
+  [
+   "BHA",
+   "GHA"
+  ],
+  [
+   "BHA",
+   "GOR"
+  ],
+  [
+   "BHA",
+   "KUR"
+  ],
+  [
+   "BHA",
+   "MUL"
   ],
   [
    "BOR",
@@ -331,23 +383,23 @@
   ],
   [
    "BOR",
+   "MIR"
+  ],
+  [
+   "BOR",
    "MLD"
   ],
   [
    "BYC",
-   "LPR"
+   "DON"
+  ],
+  [
+   "BYC",
+   "KAL"
   ],
   [
    "BYC",
    "MAL"
-  ],
-  [
-   "BYC",
-   "MAR"
-  ],
-  [
-   "BYC",
-   "MAZ"
   ],
   [
    "BYC",
@@ -356,10 +408,6 @@
   [
    "BYC",
    "WOR"
-  ],
-  [
-   "CHE",
-   "DHA"
   ],
   [
    "CHE",
@@ -371,27 +419,27 @@
   ],
   [
    "CHE",
-   "TRO"
+   "MAT"
   ],
   [
    "CHE",
-   "WAD"
+   "TRO"
   ],
   [
    "COL",
-   "FOR"
+   "DON"
+  ],
+  [
+   "COL",
+   "KAL"
   ],
   [
    "DAD",
-   "DHA"
+   "KUR"
   ],
   [
    "DAD",
-   "LPR"
-  ],
-  [
-   "DAD",
-   "MAH"
+   "MAT"
   ],
   [
    "DAD",
@@ -399,123 +447,89 @@
   ],
   [
    "DAD",
-   "WAD"
+   "SAN"
   ],
   [
    "DAD",
    "WOR"
   ],
   [
-   "DHA",
-   "KUR"
+   "DAH",
+   "MIR"
   ],
   [
-   "DHA",
-   "MAH"
-  ],
-  [
-   "DHA",
-   "SAN"
-  ],
-  [
-   "DHA",
-   "WAD"
-  ],
-  [
-   "FOR",
-   "MAR"
-  ],
-  [
-   "FOR",
-   "MAZ"
+   "DON",
+   "KAL"
   ],
   [
    "GHA",
    "KUR"
-  ],
-  [
-   "GHA",
-   "POW"
   ],
   [
    "GHA",
    "TRO"
   ],
   [
-   "GHA",
-   "VIK"
+   "GHN",
+   "KOP"
   ],
   [
    "GOR",
-   "KAN"
+   "JUH"
   ],
   [
    "GOR",
    "MLD"
   ],
   [
-   "GOR",
-   "POW"
+   "JUH",
+   "MLD"
+  ],
+  [
+   "KAL",
+   "MAL"
   ],
   [
    "KAN",
    "MLD"
   ],
   [
+   "KOP",
+   "VSH"
+  ],
+  [
    "KUR",
-   "POW"
+   "MAT"
   ],
   [
    "KUR",
    "SAN"
   ],
   [
-   "LPR",
-   "PAR"
-  ],
-  [
-   "LPR",
+   "MAL",
    "WOR"
   ],
   [
-   "MAL",
-   "MAR"
-  ],
-  [
-   "MAR",
-   "MAZ"
-  ],
-  [
-   "MAZ",
+   "MAT",
    "PAR"
   ],
   [
-   "MLD",
-   "VPJ"
-  ],
-  [
-   "MUL",
-   "VIK"
+   "NER",
+   "VSH"
   ],
   [
    "PAR",
-   "WAD"
-  ],
-  [
-   "POW",
-   "VIK"
-  ],
-  [
-   "SAN",
-   "VPJ"
-  ],
+   "WOR"
+  ]
+ ],
+ "bridges": [
   [
    "TRO",
-   "VIK"
+   "VSH"
   ],
   [
-   "TRO",
-   "WAD"
+   "MUL",
+   "AIR"
   ]
  ],
  "sea": [
@@ -524,10 +538,43 @@
    "BAN"
   ],
   [
+   "PAR",
+   "BEL"
+  ],
+  [
    "COL",
-   "TRO"
+   "ELE"
+  ],
+  [
+   "ELE",
+   "BEL"
   ]
  ],
- "walls": [],
- "samrajya": 17
+ "walls": [
+  {
+   "a": "BOR",
+   "b": "MUL",
+   "name": "Sanjay Gandhi National Park",
+   "kind": "forest"
+  },
+  {
+   "a": "KAN",
+   "b": "MUL",
+   "name": "Sanjay Gandhi National Park",
+   "kind": "forest"
+  },
+  {
+   "a": "MLD",
+   "b": "MUL",
+   "name": "Sanjay Gandhi National Park",
+   "kind": "forest"
+  },
+  {
+   "a": "GOR",
+   "b": "MUL",
+   "name": "Sanjay Gandhi National Park",
+   "kind": "forest"
+  }
+ ],
+ "samrajya": 20
 }

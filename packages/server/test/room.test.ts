@@ -385,7 +385,7 @@ describe('choice of map', () => {
     city.send('b', { t: 'ready', ready: true });
     city.send('a', { t: 'start' });
     expect(city.state('b').game!.map).toBe('mumbai');
-    expect(Object.keys(city.state('b').game!.territories)).toHaveLength(29);
+    expect(Object.keys(city.state('b').game!.territories)).toHaveLength(32);
 
     // Moves alternate between the two rooms.
     // The test reads each game's territories itself, so it says which map it is looking at first.

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   MAPS,
-  RULES_VERSION,
   TERRITORIES,
   samrajyaTarget,
   selectMap,
@@ -11,6 +10,7 @@ import {
   bestSet,
   calcReinforcements,
   createGame,
+  isPlayable,
   currentPlayer,
   isConnected,
   isMonsoon,
@@ -79,7 +79,7 @@ function load(): Saved | null {
     const raw = localStorage.getItem(SAVE_KEY);
     const saved = raw ? (JSON.parse(raw) as Saved) : null;
     // A game saved on an older map cannot be continued.
-    return saved && saved.game.rulesVersion === RULES_VERSION ? saved : null;
+    return saved && isPlayable(saved.game) ? saved : null;
   } catch {
     return null;
   }
@@ -785,7 +785,9 @@ export function Game(props: GameProps) {
                 Boundaries: <a href="https://github.com/datameet/maps">DataMeet India community</a>, CC BY 2.5 IN
               </>
             ) : (
-              'A stylised map of Mumbai, not to scale'
+              <>
+                Boundaries: <a href="https://github.com/datameet/Municipal_Spatial_Data">DataMeet India community</a>, CC BY-SA 2.5 IN
+              </>
             )}
           </span>
         </div>

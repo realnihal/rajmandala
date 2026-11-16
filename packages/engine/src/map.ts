@@ -29,6 +29,8 @@ export interface MapData {
   land: [TerritoryId, TerritoryId][];
   sea: [TerritoryId, TerritoryId][];
   rivers?: [TerritoryId, TerritoryId][];
+  /** Roads and bridges joining territories whose shapes do not touch. They count as land borders. */
+  bridges?: [TerritoryId, TerritoryId][];
   /** Borders that cannot be crossed: a mountain range or forest stands in the way. They are not in `land`. */
   walls?: { a: TerritoryId; b: TerritoryId; name: string; kind: 'range' | 'forest' }[];
   /** Territories needed for a Samrajya win, if the map sets its own; otherwise the same share as India's 28 of 43. */
@@ -41,7 +43,7 @@ export const BASE_MAP = raw as unknown as MapData;
 export type MapId = 'india' | 'mumbai';
 export const MAPS: Record<MapId, { name: string; blurb: string; data: MapData }> = {
   india: { name: 'India', blurb: 'The full game: 43 territories across the whole country.', data: BASE_MAP },
-  mumbai: { name: 'Mumbai', blurb: 'A quick game: 29 neighbourhoods of the city, a quarter to a third shorter.', data: mumbai as unknown as MapData },
+  mumbai: { name: 'Mumbai', blurb: 'A quicker game: 32 territories across Greater Mumbai, Navi Mumbai and Mira–Bhayandar.', data: mumbai as unknown as MapData },
 };
 export const isMapId = (x: unknown): x is MapId => typeof x === 'string' && x in MAPS;
 
@@ -63,6 +65,7 @@ export let TERRITORY_IDS: readonly TerritoryId[] = [];
 export let LAND_EDGES: [TerritoryId, TerritoryId][] = [];
 export let SEA_EDGES: [TerritoryId, TerritoryId][] = [];
 export let RIVER_EDGES: [TerritoryId, TerritoryId][] = [];
+export let BRIDGE_EDGES: [TerritoryId, TerritoryId][] = [];
 export let REGIONS: readonly Region[] = [];
 export let OUTPOSTS: readonly TerritoryId[] = [];
 /** Territories needed for a Samrajya win on the map in use. */
@@ -92,7 +95,8 @@ export function loadMap(data: MapData): void {
   active = (Object.keys(MAPS) as MapId[]).find((id) => MAPS[id].data === data) ?? null;
   TERRITORIES = data.territories;
   TERRITORY_IDS = TERRITORIES.map((t) => t.id);
-  LAND_EDGES = data.land;
+  BRIDGE_EDGES = data.bridges ?? [];
+  LAND_EDGES = [...data.land, ...BRIDGE_EDGES];
   SEA_EDGES = data.sea;
   RIVER_EDGES = data.rivers ?? [];
   byId = new Map(TERRITORIES.map((t) => [t.id, t]));

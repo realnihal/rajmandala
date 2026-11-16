@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { OUTPOSTS, REGIONS, SEA_EDGES, TERRITORIES, isMonsoon, selectMap } from '@rajmandala/engine';
+import { BRIDGE_EDGES, OUTPOSTS, REGIONS, SEA_EDGES, TERRITORIES, isMonsoon, selectMap } from '@rajmandala/engine';
 import type { GameView, MapId, TerritoryId } from '@rajmandala/engine';
 import indiaShapes from './mapShapes.json';
 import mumbaiShapes from './mumbaiShapes.json';
@@ -71,6 +71,8 @@ interface Art {
   nudge: typeof TOKEN_NUDGE;
   /** The name lettered on the parkland, if the map has any. */
   parkName?: string;
+  /** Where the region bonus chart sits, measured from the bottom-right corner. */
+  chart: { right: number; bottom: number };
   credit: string;
 }
 const ART: Record<MapId, Art> = {
@@ -91,24 +93,26 @@ const ART: Record<MapId, Art> = {
     ],
     landCentre: { x: 430, y: 560 },
     nudge: TOKEN_NUDGE,
+    chart: { right: 430, bottom: 232 },
     credit: 'india',
   },
   mumbai: {
     shapes: mumbaiShapes as unknown as Art['shapes'],
     regionNames: {
-      south: { dx: -190, dy: 60, rotate: 0 },
-      central: { dx: -235, dy: 10, rotate: 0 },
-      western: { dx: -245, dy: 40, rotate: -80 },
-      eastern: { dx: 215, dy: 150, rotate: -52 },
+      south: { dx: -150, dy: 30, rotate: 0 },
+      central: { dx: -190, dy: 0, rotate: 0 },
+      western: { dx: -215, dy: 60, rotate: -84 },
+      eastern: { dx: 10, dy: -150, rotate: -62 },
+      navi: { dx: 46, dy: 40, rotate: 84 },
     },
     seas: [
-      { text: 'ARABIAN SEA', x: 56, y: 800, rotate: -84 },
-      { text: 'THANE CREEK', x: 948, y: 330, rotate: 80 },
-      { text: 'MUMBAI HARBOUR', x: 560, y: 840, rotate: 0 },
+      { text: 'ARABIAN SEA', x: 62, y: 700, rotate: -86 },
+      { text: 'THANE CREEK', x: 682, y: 470, rotate: 74 },
+      { text: 'MUMBAI HARBOUR', x: 430, y: 880, rotate: -24 },
     ],
-    landCentre: { x: 500, y: 520 },
+    landCentre: { x: 470, y: 560 },
     nudge: {},
-    parkName: 'Sanjay Gandhi National Park',
+    chart: { right: 252, bottom: 204 },
     credit: 'mumbai',
   },
 };
@@ -503,9 +507,22 @@ export default function Board(props: Props) {
             {w.marks.map(([x, y], i) => (
               <path key={i} className="glyph" d={w.kind === 'forest' ? TREE : PEAK} transform={`translate(${x} ${y - 2})`} />
             ))}
-            <text x={w.label.x} y={w.label.y - 9}>
-              {w.name}
-            </text>
+            {/* A barrier drawn in several stretches is named once. */}
+            {WALLS.findIndex((o) => o.name === w.name) === WALLS.indexOf(w) && (
+              <text x={w.label.x} y={w.label.y - 9}>
+                {w.name}
+              </text>
+            )}
+          </g>
+        ))}
+      </g>
+
+      {/* Road bridges between territories that the water separates. */}
+      <g className="bridges">
+        {BRIDGE_EDGES.map(([a, b]) => (
+          <g key={a + b}>
+            <line x1={tokenAt(a).x} y1={tokenAt(a).y} x2={tokenAt(b).x} y2={tokenAt(b).y} className="deck" />
+            <line x1={tokenAt(a).x} y1={tokenAt(a).y} x2={tokenAt(b).x} y2={tokenAt(b).y} className="road" />
           </g>
         ))}
       </g>
@@ -533,7 +550,7 @@ export default function Board(props: Props) {
 
       {monsoon && <rect width={W} height={H} fill="url(#rain)" pointerEvents="none" />}
 
-      <g className="chart" transform={`translate(${W - 430} ${H - 232})`}>
+      <g className="chart" transform={`translate(${W - art.chart.right} ${H - art.chart.bottom})`}>
         <rect width="236" height={50 + (REGIONS.length + (OUTPOSTS.length ? 1 : 0)) * 24} rx="8" />
         <text className="charttitle" x="16" y="26">
           REGION BONUS · armies each turn
