@@ -10,6 +10,7 @@ import type {
   GameState,
   PlayerId,
   PlayerState,
+  RewardRules,
   Result,
   RuleErrorCode,
   VictoryMode,
@@ -144,6 +145,8 @@ export interface GameConfig {
   players: PlayerId[];
   seed: number;
   victory?: VictoryMode;
+  /** Experimental: turn on the reward choice with these strengths. */
+  rewards?: RewardRules;
 }
 
 export function createGame(cfg: GameConfig): Result {
@@ -168,6 +171,11 @@ export function createGame(cfg: GameConfig): Result {
     winner: null,
     rng: cfg.seed >>> 0,
   };
+  if (cfg.rewards) {
+    s.rewards = { ...cfg.rewards };
+    s.forts = [];
+    s.cannons = [];
+  }
 
   s.turnOrder = shuffle(s, cfg.players);
   const dealt = shuffle(s, TERRITORY_IDS);
@@ -215,6 +223,12 @@ function beginTurn(s: GameState, ev: GameEvent[]): void {
   s.conqueredThisTurn = false;
   s.pendingOccupy = null;
   s.pendingReinforcements = calcReinforcements(s, player).total;
+  const goal = s.players[player].goal;
+  if (goal && s.territories[goal.target].owner === player) {
+    s.pendingReinforcements += goal.bonus;
+    s.players[player].goal = null;
+    ev.push({ type: 'goalMet', player, territory: goal.target, armies: goal.bonus });
+  }
   ev.push({ type: 'turnStarted', player, reinforcements: s.pendingReinforcements });
 }
 
@@ -235,18 +249,24 @@ function meetsEndOfTurnVictory(s: GameState, player: PlayerId): boolean {
 }
 
 /** Ends the current player's turn and starts the next one. `draw` is false when the player has just left the game. */
+function drawCard(s: GameState, ev: GameEvent[], player: PlayerId): void {
+  if (s.deck.length === 0) {
+    s.deck = shuffle(s, s.discard);
+    s.discard = [];
+  }
+  const card = s.deck.pop();
+  if (card !== undefined) {
+    s.players[player].cards.push(card);
+    ev.push({ type: 'cardDrawn', player, card });
+  }
+}
+
 function endTurn(s: GameState, ev: GameEvent[], draw: boolean): void {
   const player = currentPlayer(s);
   if (draw && s.conqueredThisTurn) {
-    if (s.deck.length === 0) {
-      s.deck = shuffle(s, s.discard);
-      s.discard = [];
-    }
-    const card = s.deck.pop();
-    if (card !== undefined) {
-      s.players[player].cards.push(card);
-      ev.push({ type: 'cardDrawn', player, card });
-    }
+    // Experimental: the player picks their reward before the turn passes on.
+    if (s.rewards) return setPhase(s, ev, 'reward');
+    drawCard(s, ev, player);
   }
   if (draw && meetsEndOfTurnVictory(s, player)) return finish(s, ev, player, s.victory);
 
@@ -391,6 +411,9 @@ function attack(s: GameState, ev: GameEvent[], p: PlayerState, a: Extract<Action
     let defenceRoll = sortedRolls(s, Math.min(2, to.armies));
     const reroll = isHeldCapital(s, a.to) && defenceRoll.includes(1);
     if (reroll) defenceRoll = defenceRoll.map((d) => (d === 1 ? rollDie(s) : d)).sort((x, y) => y - x);
+    // Experimental: a cannon lifts the attacker's best die, a fort the defender's.
+    if (s.rewards && s.cannons?.includes(a.from)) attackRoll[0] += s.rewards.cannon;
+    if (s.rewards && s.forts?.includes(a.to)) defenceRoll[0] += s.rewards.fort;
 
     let attackerLost = 0;
     let defenderLost = 0;
@@ -415,6 +438,9 @@ function attack(s: GameState, ev: GameEvent[], p: PlayerState, a: Extract<Action
       const capital = isHeldCapital(s, a.to);
       to.owner = p.id;
       s.conqueredThisTurn = true;
+      // Works on a captured territory are destroyed.
+      if (s.forts) s.forts = s.forts.filter((t) => t !== a.to);
+      if (s.cannons) s.cannons = s.cannons.filter((t) => t !== a.to);
       s.pendingOccupy = { from: a.from, to: a.to, min: dice, capitalBonus: capital ? CAPITAL_CAPTURE_BONUS : 0 };
       ev.push({ type: 'territoryCaptured', territory: a.to, by: p.id, from: defender, capital });
       if (defender !== 'neutral') eliminateIfDefeated(s, ev, defender, p);
@@ -459,6 +485,31 @@ function endPhase(s: GameState, ev: GameEvent[], p: PlayerState): void {
   }
   if (s.phase === 'fortify') return endTurn(s, ev, true);
   fail('wrong-phase', 'This phase cannot be skipped');
+}
+
+/** Experimental: the player takes one reward for having captured a territory this turn. */
+function reward(s: GameState, ev: GameEvent[], p: PlayerState, a: Extract<Action, { type: 'reward' }>): void {
+  if (s.phase !== 'reward' || !s.rewards) fail('wrong-phase', 'No reward to choose now');
+  const owns = (t: unknown): t is TerritoryId => isTerritory(t) && s.territories[t].owner === p.id;
+  if (a.choice === 'card') {
+    drawCard(s, ev, p.id);
+  } else if (a.choice === 'fort' || a.choice === 'cannon') {
+    if (!owns(a.territory)) fail('not-owner', 'Build on your own territory');
+    const list = a.choice === 'fort' ? s.forts! : s.cannons!;
+    if (list.includes(a.territory)) fail('invalid-action', 'There is already one there');
+    list.push(a.territory);
+  } else if (a.choice === 'goal') {
+    // A territory on the player's frontier that they do not hold.
+    const seaOpen = !isMonsoon(s);
+    const frontier = [...new Set(territoriesOf(s, p.id).flatMap((t) => neighbors(t, seaOpen)))].filter((t) => s.territories[t].owner !== p.id);
+    if (frontier.length === 0) fail('invalid-action', 'No goal is available');
+    p.goal = { target: shuffle(s, frontier)[0], bonus: s.rewards.goal };
+  } else {
+    fail('invalid-action', 'Unknown reward');
+  }
+  ev.push({ type: 'rewardTaken', player: p.id, choice: a.choice, ...(a.territory ? { territory: a.territory } : {}) });
+  s.conqueredThisTurn = false;
+  endTurn(s, ev, true);
 }
 
 function surrender(s: GameState, ev: GameEvent[], p: PlayerState): void {
@@ -529,6 +580,9 @@ export function applyAction(state: GameState, player: PlayerId, action: Action):
       break;
     case 'endPhase':
       endPhase(s, ev, p);
+      break;
+    case 'reward':
+      reward(s, ev, p, action);
       break;
     default:
       fail('invalid-action', 'Unknown action');

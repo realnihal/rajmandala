@@ -77,7 +77,8 @@ export function botAction(s: GameState, player: PlayerId, rand: () => number, st
     const front = own.filter((t) => foes(t).length > 0);
     if (!smart || front.length === 0) return { type: 'place', territory: pick(front.length ? front : own, rand), armies: s.pendingReinforcements };
     // Reinforce where it matters most: a nearly complete region, or the most threatened border.
-    const best = [...front].sort((a, b) => regionShare(b) * 6 + threat(b) - armies(b) - (regionShare(a) * 6 + threat(a) - armies(a)))[0];
+    const worth = (t: TerritoryId) => regionShare(t) * 6 + threat(t) - armies(t) + (s.cannons?.includes(t) ? 3 : 0);
+    const best = [...front].sort((a, b) => worth(b) - worth(a))[0];
     return { type: 'place', territory: best, armies: s.pendingReinforcements };
   }
   if (s.phase === 'reinforce') return { type: 'endPhase' };
@@ -90,7 +91,10 @@ export function botAction(s: GameState, player: PlayerId, rand: () => number, st
       for (const to of foes(from)) {
         const edge = armies(from) - armies(to);
         if (edge < 2 && armies(from) < armies(to) * 2) continue;
-        const score = edge + regionShare(to) * 5 + (s.territories[to].owner === 'neutral' ? -1 : 0) + rand();
+        // Experimental works and goals tilt the choice: cannons help, forts deter, a goal is worth chasing.
+        const works = (s.cannons?.includes(from) ? 1.5 : 0) - (s.forts?.includes(to) ? 2 : 0) + (p.goal?.target === to ? 4 : 0);
+        if (s.forts?.includes(to) && edge < 4) continue;
+        const score = edge + works + regionShare(to) * 5 + (s.territories[to].owner === 'neutral' ? -1 : 0) + rand();
         if (!best || score > best.score) best = { from, to, score };
       }
     }

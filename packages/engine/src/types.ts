@@ -13,6 +13,7 @@ export type Phase =
   | 'attack'
   | 'occupy' // attacker must move armies into a territory just captured
   | 'fortify'
+  | 'reward' // experimental: the player chooses what they earned for capturing this turn
   | 'finished';
 
 export interface PlayerState {
@@ -26,7 +27,23 @@ export interface PlayerState {
   setupPlacement: Record<TerritoryId, number> | null;
   /** True once the seat has been surrendered. */
   surrendered: boolean;
+  /** Experimental: a territory to capture for a one-off army bonus. */
+  goal?: { target: TerritoryId; bonus: number } | null;
 }
+
+/**
+ * Experimental rule set: instead of always drawing a card for capturing a territory,
+ * the player chooses one reward. Present only in games created with `rewards`.
+ */
+export interface RewardRules {
+  /** Added to the defender's best die in a territory with a fort. */
+  fort: number;
+  /** Added to the attacker's best die when attacking out of a territory with a cannon. */
+  cannon: number;
+  /** Armies for completing a goal. */
+  goal: number;
+}
+export type RewardChoice = 'card' | 'fort' | 'cannon' | 'goal';
 
 export interface TerritoryState {
   owner: Owner;
@@ -60,6 +77,10 @@ export interface GameState {
   winner: PlayerId | null;
   /** RNG state. Server-only; never sent to clients. */
   rng: number;
+  /** Experimental reward-choice rules; absent in a normal game. */
+  rewards?: RewardRules;
+  forts?: TerritoryId[];
+  cannons?: TerritoryId[];
 }
 
 /** The public part of a game that both the full state and a player's view have. */
@@ -80,6 +101,8 @@ export type Action =
   | { type: 'occupy'; armies: number }
   | { type: 'fortify'; from: TerritoryId; to: TerritoryId; armies: number }
   | { type: 'endPhase' }
+  /** Experimental. `territory` is where a fort or cannon goes. */
+  | { type: 'reward'; choice: RewardChoice; territory?: TerritoryId }
   | { type: 'surrender' };
 
 export type GameEvent =
@@ -109,6 +132,8 @@ export type GameEvent =
   | { type: 'playerSurrendered'; player: PlayerId }
   | { type: 'fortified'; from: TerritoryId; to: TerritoryId; armies: number }
   | { type: 'cardDrawn'; player: PlayerId; card: CardId }
+  | { type: 'rewardTaken'; player: PlayerId; choice: RewardChoice; territory?: TerritoryId }
+  | { type: 'goalMet'; player: PlayerId; territory: TerritoryId; armies: number }
   | { type: 'gameWon'; player: PlayerId; mode: VictoryMode | 'last-standing' };
 
 export interface Result {
