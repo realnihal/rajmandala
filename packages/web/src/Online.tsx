@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, PlayerId, VictoryMode } from '@rajmandala/engine';
 import { TURN_SECONDS } from '@rajmandala/server';
 import type { RoomOptions, ServerMsg } from '@rajmandala/server';
-import { Game, VICTORY_TEXT } from './App';
+import { MAPS, selectMap } from '@rajmandala/engine';
+import { Game, MapChoice, VICTORY_TEXT } from './App';
 import type { GameUpdate } from './App';
 import { MenuShell } from './Menu';
 import { guestSlot } from './Root';
@@ -174,6 +175,7 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
   const invite = `${location.origin}${location.pathname}#/r/${room.code}`;
   const others = room.members.filter((m) => m.id !== room.hostId);
   const canStart = room.members.length >= 2 && others.every((m) => m.ready || m.bot);
+  selectMap(room.options.map); // so the win target shown is for the chosen map
   const timerText = (s: number) => (s === 0 ? 'Off' : s === 86400 ? '1 day' : `${s / 60} min`);
   const setOptions = (patch: Partial<RoomOptions>) => send.send({ t: 'options', options: { ...room.options, ...patch } });
 
@@ -271,6 +273,7 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
         <h2>Game options</h2>
         {isHost ? (
           <>
+            <MapChoice value={room.options.map} onChange={(map) => setOptions({ map })} />
             <div className="row">
               <span>Seats</span>
               <div className="seg" role="group" aria-label="Seats">
@@ -308,10 +311,15 @@ function Lobby(props: { state: State; isHost: boolean; banner: React.ReactNode; 
             </label>
           </>
         ) : (
+          <>
+          <p>
+            Map: <b>{MAPS[room.options.map].name}</b>. {MAPS[room.options.map].blurb}
+          </p>
           <p>
             <b>{VICTORY_TEXT[room.options.victory][0]}</b> — {VICTORY_TEXT[room.options.victory][1]}.{' '}
             {room.options.autoPlace ? 'Starting armies are placed at random.' : 'Players place their own starting armies.'} Turn timer: {timerText(room.options.turnSeconds).toLowerCase()}.
           </p>
+          </>
         )}
       </section>
 

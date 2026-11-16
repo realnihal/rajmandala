@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { REGIONS, SEA_EDGES, TERRITORIES, isMonsoon } from '@rajmandala/engine';
-import type { GameView, TerritoryId } from '@rajmandala/engine';
-import shapes from './mapShapes.json';
+import { OUTPOSTS, REGIONS, SEA_EDGES, TERRITORIES, isMonsoon, selectMap } from '@rajmandala/engine';
+import type { GameView, MapId, TerritoryId } from '@rajmandala/engine';
+import indiaShapes from './mapShapes.json';
+import mumbaiShapes from './mumbaiShapes.json';
 import { OUTPOST_LINE, REGION_LINE, TOKEN_NUDGE } from './theme';
 
 /** A battle being played out: the board zooms to it and shows each roll's losses. */
@@ -29,31 +30,123 @@ interface Props {
   onPick: (id: TerritoryId, many: boolean) => void;
 }
 
-const SHAPES = shapes.territories as Record<string, { d: string; x: number; y: number; room: number }>;
-const REGION_SHAPES = shapes.regions as Record<string, { d: string; x: number; y: number }>;
-const WALLS = shapes.walls as { a: string; b: string; name: string; kind: string; d: string; marks: number[][]; label: { x: number; y: number } }[];
+type Box = [number, number, number, number];
+interface Shape {
+  d: string;
+  x: number;
+  y: number;
+}
+interface Wall {
+  a: string;
+  b: string;
+  name: string;
+  kind: string;
+  d: string;
+  marks: number[][];
+  label: { x: number; y: number };
+}
+interface Lettering {
+  text: string;
+  x: number;
+  y: number;
+  rotate: number;
+}
+/** Everything about how one map is drawn. */
+interface Art {
+  shapes: {
+    width: number;
+    height: number;
+    territories: Record<string, Shape>;
+    regions: Record<string, Shape & { line?: string }>;
+    walls: Wall[];
+    park?: string;
+    parkLabel?: { x: number; y: number };
+  };
+  /** Where a region's name is lettered, relative to the middle of the region. */
+  regionNames: Record<string, { dx: number; dy: number; rotate: number }>;
+  seas: Lettering[];
+  /** A point in the middle of the land, so sea routes can bow away from it. */
+  landCentre: { x: number; y: number };
+  /** Hand adjustments to where a territory's army token and name sit. */
+  nudge: typeof TOKEN_NUDGE;
+  /** The name lettered on the parkland, if the map has any. */
+  parkName?: string;
+  credit: string;
+}
+const ART: Record<MapId, Art> = {
+  india: {
+    shapes: indiaShapes as unknown as Art['shapes'],
+    regionNames: {
+      north: { dx: 44, dy: 6, rotate: -58 },
+      gangetic: { dx: 6, dy: -28, rotate: 12 },
+      west: { dx: -6, dy: -52, rotate: -64 },
+      central: { dx: 0, dy: 34, rotate: -8 },
+      south: { dx: -4, dy: 40, rotate: -62 },
+      northeast: { dx: 34, dy: -46, rotate: -24 },
+    },
+    seas: [
+      { text: 'ARABIAN SEA', x: 58, y: 840, rotate: -78 },
+      { text: 'BAY OF BENGAL', x: 640, y: 800, rotate: -18 },
+      { text: 'INDIAN OCEAN', x: 330, y: 1118, rotate: 0 },
+    ],
+    landCentre: { x: 430, y: 560 },
+    nudge: TOKEN_NUDGE,
+    credit: 'india',
+  },
+  mumbai: {
+    shapes: mumbaiShapes as unknown as Art['shapes'],
+    regionNames: {
+      south: { dx: -190, dy: 60, rotate: 0 },
+      central: { dx: -235, dy: 10, rotate: 0 },
+      western: { dx: -245, dy: 40, rotate: -80 },
+      eastern: { dx: 215, dy: 150, rotate: -52 },
+    },
+    seas: [
+      { text: 'ARABIAN SEA', x: 56, y: 800, rotate: -84 },
+      { text: 'THANE CREEK', x: 948, y: 330, rotate: 80 },
+      { text: 'MUMBAI HARBOUR', x: 560, y: 840, rotate: 0 },
+    ],
+    landCentre: { x: 500, y: 520 },
+    nudge: {},
+    parkName: 'Sanjay Gandhi National Park',
+    credit: 'mumbai',
+  },
+};
+
+// The art in use. Set at the top of every render of the board, for the map of the game being shown.
+let art = ART.india;
+let SHAPES = art.shapes.territories;
+let REGION_SHAPES = art.shapes.regions;
+let WALLS = art.shapes.walls;
+let W = art.shapes.width;
+let H = art.shapes.height;
+let FULL: Box = [0, 0, W, H];
+let MIN_VIEW = W / 6;
+function useArt(map: MapId): Art {
+  selectMap(map);
+  art = ART[map];
+  SHAPES = art.shapes.territories;
+  REGION_SHAPES = art.shapes.regions;
+  WALLS = art.shapes.walls;
+  W = art.shapes.width;
+  H = art.shapes.height;
+  FULL = [0, 0, W, H];
+  MIN_VIEW = W / 6;
+  return art;
+}
+/** The credit line for the map a game is on. */
+export const mapCredit = (map: MapId) => ART[map].credit;
+
 const PEAK = 'M-5 3.5 L-1.5 -4 L0.5 -0.5 L2 -3 L5 3.5 Z';
 const TREE = 'M0 -5 L3.4 1 H1 V4 H-1 V1 H-3.4 Z';
-/** Where a region's name is lettered across the land, nudged clear of the busiest spots. */
-const REGION_NAME: Record<string, { dx: number; dy: number; rotate: number }> = {
-  north: { dx: 44, dy: 6, rotate: -58 },
-  gangetic: { dx: 6, dy: -28, rotate: 12 },
-  west: { dx: -6, dy: -52, rotate: -64 },
-  central: { dx: 0, dy: 34, rotate: -8 },
-  south: { dx: -4, dy: 40, rotate: -62 },
-  northeast: { dx: 34, dy: -46, rotate: -24 },
-};
-const { width: W, height: H } = shapes;
-const FULL: Box = [0, 0, W, H];
 const TOKEN_R = 11;
-const LAND_CENTRE = { x: 430, y: 560 };
 const TOWER = 'M-5 7 V-2 H-6.5 V-8 H-3.8 V-5.5 H-1.4 V-8 H1.4 V-5.5 H3.8 V-8 H6.5 V-2 H5 V7 Z';
 
-type Box = [number, number, number, number];
+
 
 function tokenAt(id: string) {
   const s = SHAPES[id];
-  const n = TOKEN_NUDGE[id] ?? {};
+  const n = art.nudge[id] ?? {};
   return { x: s.x + (n.dx ?? 0), y: s.y + (n.dy ?? 0) };
 }
 
@@ -63,8 +156,8 @@ function seaPath(a: string, b: string): string {
   const q = tokenAt(b);
   const mx = (p.x + q.x) / 2;
   const my = (p.y + q.y) / 2;
-  const ox = mx - LAND_CENTRE.x;
-  const oy = my - LAND_CENTRE.y;
+  const ox = mx - art.landCentre.x;
+  const oy = my - art.landCentre.y;
   const len = Math.hypot(ox, oy) || 1;
   const bow = Math.hypot(q.x - p.x, q.y - p.y) * 0.16;
   return `M${p.x} ${p.y}Q${mx + (ox / len) * bow} ${my + (oy / len) * bow} ${q.x} ${q.y}`;
@@ -120,7 +213,6 @@ function useZoom(target: Box, glide: boolean): Box {
   return box;
 }
 
-const MIN_VIEW = W / 6;
 
 function clampView(v: Box): Box {
   const w = Math.min(W, Math.max(MIN_VIEW, v[2]));
@@ -247,6 +339,7 @@ function Pieces({ n, fill, y }: { n: number; fill: string; y: number }) {
 
 export default function Board(props: Props) {
   const { game, armies, colorOf, nameOf, clickable, targets, from, to, battle, focus, onPick } = props;
+  useArt(game.map ?? 'india');
   const monsoon = isMonsoon(game);
   const [view, setView] = useState<Box>(FULL);
   const svg = useRef<SVGSVGElement>(null);
@@ -304,6 +397,9 @@ export default function Board(props: Props) {
         <pattern id="waves" width="54" height="22" patternUnits="userSpaceOnUse">
           <path d="M0 11 Q 13.5 4 27 11 T 54 11" fill="none" stroke="#ffffff" strokeOpacity="0.28" strokeWidth="1" />
         </pattern>
+        <pattern id="trees" width="18" height="16" patternUnits="userSpaceOnUse">
+          <path d="M5 11 L8 4 L11 11 Z M13 15 L15.5 9 L18 15 Z" fill="#2f6b2c" fillOpacity="0.55" />
+        </pattern>
         <pattern id="peaks" width="22" height="16" patternUnits="userSpaceOnUse">
           <path d="M3 13 L8 5 L11 9 L13 6 L18 13" fill="none" stroke="#3a332c" strokeOpacity="0.28" strokeWidth="1" strokeLinejoin="round" />
         </pattern>
@@ -325,15 +421,11 @@ export default function Board(props: Props) {
       <rect width={W} height={H} fill="url(#waves)" />
       <rect width={W} height={H} fill="url(#vignette)" />
       <g className="seas" aria-hidden="true">
-        <text x="58" y="840" transform="rotate(-78 58 840)">
-          ARABIAN SEA
-        </text>
-        <text x="640" y="800" transform="rotate(-18 640 800)">
-          BAY OF BENGAL
-        </text>
-        <text x="330" y="1118">
-          INDIAN OCEAN
-        </text>
+        {art.seas.map((s) => (
+          <text key={s.text} x={s.x} y={s.y} transform={`rotate(${s.rotate} ${s.x} ${s.y})`}>
+            {s.text}
+          </text>
+        ))}
       </g>
       <g className="compass" transform={`translate(74 ${H - 74})`} aria-hidden="true">
         <circle r="30" />
@@ -361,6 +453,19 @@ export default function Board(props: Props) {
         })}
       </g>
 
+      {/* Parkland that belongs to nobody and cannot be entered. */}
+      {art.shapes.park && (
+        <g className="park" aria-hidden="true">
+          <path d={art.shapes.park} />
+          <path d={art.shapes.park} fill="url(#trees)" />
+          {art.parkName && art.shapes.parkLabel && (
+            <text x={art.shapes.parkLabel.x} y={art.shapes.parkLabel.y} transform={`rotate(-80 ${art.shapes.parkLabel.x} ${art.shapes.parkLabel.y})`}>
+              {art.parkName}
+            </text>
+          )}
+        </g>
+      )}
+
       {/* Mountain country is textured with peaks, so the terrain reads at a glance. */}
       <g className="terrain" aria-hidden="true">
         {TERRITORIES.filter((t) => t.mountain).map((t) => (
@@ -371,14 +476,14 @@ export default function Board(props: Props) {
       {/* One coloured line per region, clipped to its own side of the border. */}
       <g className="regions">
         {REGIONS.map((r) => (
-          <path key={r.id} d={REGION_SHAPES[r.id].d} clipPath={`url(#clip-${r.id})`} stroke={REGION_LINE[r.id]} />
+          <path key={r.id} d={REGION_SHAPES[r.id].line ?? REGION_SHAPES[r.id].d} clipPath={`url(#clip-${r.id})`} stroke={REGION_LINE[r.id]} />
         ))}
       </g>
 
       {/* Each region's name, lettered faintly across its land. */}
       <g className="regionnames" aria-hidden="true">
         {REGIONS.map((r) => {
-          const at = REGION_NAME[r.id] ?? { dx: 0, dy: 0, rotate: 0 };
+          const at = art.regionNames[r.id] ?? { dx: 0, dy: 0, rotate: 0 };
           const x = REGION_SHAPES[r.id].x + at.dx;
           const y = REGION_SHAPES[r.id].y + at.dy;
           return (
@@ -429,12 +534,12 @@ export default function Board(props: Props) {
       {monsoon && <rect width={W} height={H} fill="url(#rain)" pointerEvents="none" />}
 
       <g className="chart" transform={`translate(${W - 430} ${H - 232})`}>
-        <rect width="236" height="218" rx="8" />
+        <rect width="236" height={50 + (REGIONS.length + (OUTPOSTS.length ? 1 : 0)) * 24} rx="8" />
         <text className="charttitle" x="16" y="26">
           REGION BONUS · armies each turn
         </text>
         {[...REGIONS.map((r) => ({ id: r.id, name: r.name, bonus: r.bonus, line: REGION_LINE[r.id], holder: holderOf(r.territories) })),
-          { id: 'outposts', name: 'Each island outpost', bonus: 1, line: OUTPOST_LINE, holder: null }].map((r, i) => (
+          ...(OUTPOSTS.length ? [{ id: 'outposts', name: 'Each island outpost', bonus: 1, line: OUTPOST_LINE, holder: null }] : [])].map((r, i) => (
           <g key={r.id} transform={`translate(16 ${42 + i * 24})`}>
             <line x1="0" y1="8" x2="20" y2="8" stroke={r.line} strokeWidth="5" strokeLinecap="round" />
             <text x="30" y="13">{r.name}</text>
@@ -455,7 +560,7 @@ export default function Board(props: Props) {
           const { x, y } = tokenAt(t.id);
           const color = colorOf(owner(t.id));
           const canClick = clickable.has(t.id);
-          const nudge = TOKEN_NUDGE[t.id] ?? {};
+          const nudge = art.nudge[t.id] ?? {};
           const capital = capitalOf.get(t.id);
           const lost = lossAt(t.id);
           const inBattle = battle && (t.id === battle.from || t.id === battle.to);

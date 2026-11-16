@@ -15,6 +15,8 @@ Contents: [1. The map](#1-the-map) · [2. The rules](#2-the-rules) · [3. Archit
 > - **Bengal is split.** North Bengal (Darjeeling, Jalpaiguri, Cooch Behar: the Siliguri corridor) is its own territory in the Northeast, and is the only land route into that region, from Bihar or Bengal. The Northeast now has 9 territories.
 > - **Four borders cannot be crossed,** because a range or forest stands on them: Purvanchal–Chhattisgarh (Kaimur Hills), Awadh–Malwa (Chambal Ravines), Gujarat Plains–Desh (Satpura Range) and Chhattisgarh–Telangana (Dandakaranya Forest). They are drawn on the board and give the exposed Central Heartland some shelter.
 >
+> **A second map, Mumbai,** is a quick game: 29 neighbourhoods in four regions (South Mumbai, Central Mumbai, Western Suburbs, Eastern Suburbs), drawn as a stylised diagram by `tools/map-build/build-mumbai.mjs`. Sanjay Gandhi National Park is impassable, and the Bandra–Worli Sea Link and a harbour ferry are sea routes. Its Samrajya target is 17 of 29, set by simulation so that games run about a quarter shorter with four players and a third shorter with six. Starting armies and the two-player neutral share scale with the size of the map.
+>
 > In 500 simulated games per table size, neither change lengthened games, the walls modestly helped the Central Heartland, and nothing tested removed the Northeast's advantage as a starting corner.
 
 42 territories: 40 on the mainland in six regions, plus two island outposts. Territories follow state boundaries; the largest states are split along historical sub-regions and the smallest are merged, so that territories are of comparable size and every region has interesting borders.

@@ -1,4 +1,5 @@
 import raw from './map.json';
+import mumbai from './mumbai.json';
 
 export type TerritoryId = string;
 export type RegionId = string;
@@ -30,9 +31,32 @@ export interface MapData {
   rivers?: [TerritoryId, TerritoryId][];
   /** Borders that cannot be crossed: a mountain range or forest stands in the way. They are not in `land`. */
   walls?: { a: TerritoryId; b: TerritoryId; name: string; kind: 'range' | 'forest' }[];
+  /** Territories needed for a Samrajya win, if the map sets its own; otherwise the same share as India's 28 of 43. */
+  samrajya?: number;
 }
 
 export const BASE_MAP = raw as unknown as MapData;
+
+/** The maps a game can be played on. */
+export type MapId = 'india' | 'mumbai';
+export const MAPS: Record<MapId, { name: string; blurb: string; data: MapData }> = {
+  india: { name: 'India', blurb: 'The full game: 43 territories across the whole country.', data: BASE_MAP },
+  mumbai: { name: 'Mumbai', blurb: 'A quick game: 29 neighbourhoods of the city, a quarter to a third shorter.', data: mumbai as unknown as MapData },
+};
+export const isMapId = (x: unknown): x is MapId => typeof x === 'string' && x in MAPS;
+
+let active: MapId | null = null;
+
+/**
+ * Makes one of the game's maps the map in use. The rules call this themselves for
+ * whichever game they are given, so rooms on different maps can share a server.
+ * It does nothing while a simulation has loaded a trial map of its own.
+ */
+export function selectMap(id: MapId = 'india'): void {
+  if (active === id || (active === null && TERRITORIES.length > 0)) return;
+  loadMap(MAPS[id].data);
+}
+export const activeMap = (): MapId => active ?? 'india';
 
 export let TERRITORIES: readonly Territory[] = [];
 export let TERRITORY_IDS: readonly TerritoryId[] = [];
@@ -41,6 +65,8 @@ export let SEA_EDGES: [TerritoryId, TerritoryId][] = [];
 export let RIVER_EDGES: [TerritoryId, TerritoryId][] = [];
 export let REGIONS: readonly Region[] = [];
 export let OUTPOSTS: readonly TerritoryId[] = [];
+/** Territories needed for a Samrajya win on the map in use. */
+export let SAMRAJYA_NEEDED = 28;
 
 let byId = new Map<TerritoryId, Territory>();
 let landAdj = new Map<TerritoryId, TerritoryId[]>();
@@ -63,6 +89,7 @@ function buildAdjacency(edges: [TerritoryId, TerritoryId][]): Map<TerritoryId, T
  * simulations can try out variants of the map before one is adopted.
  */
 export function loadMap(data: MapData): void {
+  active = (Object.keys(MAPS) as MapId[]).find((id) => MAPS[id].data === data) ?? null;
   TERRITORIES = data.territories;
   TERRITORY_IDS = TERRITORIES.map((t) => t.id);
   LAND_EDGES = data.land;
@@ -71,6 +98,7 @@ export function loadMap(data: MapData): void {
   byId = new Map(TERRITORIES.map((t) => [t.id, t]));
   REGIONS = data.regions.map((r) => ({ ...r, territories: TERRITORIES.filter((t) => t.region === r.id).map((t) => t.id) }));
   OUTPOSTS = TERRITORIES.filter((t) => t.outpost).map((t) => t.id);
+  SAMRAJYA_NEEDED = data.samrajya ?? Math.ceil((TERRITORIES.length * 28) / 43);
   rivers = new Set(RIVER_EDGES.map(([a, b]) => edgeKey(a, b)));
   // A river crossing is a land border that closes with the sea routes, so it is kept apart from open land.
   landAdj = buildAdjacency(LAND_EDGES.filter(([a, b]) => !rivers.has(edgeKey(a, b))));
