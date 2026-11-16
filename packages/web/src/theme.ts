@@ -10,6 +10,12 @@ export const REGION_LINE: Record<string, string> = {
   western: '#b3420f',
   eastern: '#0f7265',
   navi: '#1f4e8c',
+  // Hyderabad
+  old: '#b3420f',
+  secunderabad: '#1f4e8c',
+  east: '#0f7265',
+  cyberabad: '#8a2a74',
+  northwest: '#b08900',
 };
 export const OUTPOST_LINE = '#55617a';
 

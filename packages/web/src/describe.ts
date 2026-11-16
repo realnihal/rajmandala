@@ -19,7 +19,7 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
         .join(', ')}.`;
     case 'roundStarted':
       return e.monsoon
-        ? `Round ${e.round} — Monsoon. Sea routes are closed and attacks roll fewer dice.`
+        ? `Round ${e.round} — Monsoon. Sea routes and river crossings are closed, and attacks roll fewer dice.`
         : `Round ${e.round}${e.monsoonNext ? ' — Monsoon arrives next round.' : '.'}`;
     case 'turnStarted':
       return `${name(e.player)}'s turn: ${e.reinforcements} armies to place.`;

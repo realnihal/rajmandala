@@ -1,7 +1,7 @@
 import type { Action, GameEvent, GameView, MapId, PlayerId, VictoryMode } from '@rajmandala/engine';
 
 /** Bumped whenever a message changes shape; an old client is told to reload. */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** How many colours a player can choose from. The colours themselves belong to the screen. */
 export const COLOR_COUNT = 8;

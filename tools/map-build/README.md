@@ -29,3 +29,18 @@ Builds `packages/engine/src/mumbai.json` and `packages/web/src/mumbaiShapes.json
 (`Mumbai/BMC_Wards.geojson`, `NMMC/NMC_ElectoralWards.geojson`, `Mira-Bhayandar/Mira-Bhayandar.geojson`),
 shared under [Creative Commons Attribution-ShareAlike 2.5 India](http://creativecommons.org/licenses/by-sa/2.5/in/).
 That licence is share-alike: the two files this build writes are derived from the data and carry the same licence.
+
+## Hyderabad
+
+```bash
+node tools/map-build/build-hyderabad.mjs
+```
+
+Builds `packages/engine/src/hyderabad.json` and `packages/web/src/hyderabadShapes.json`.
+
+`data/hyderabad/` holds `ghmc-wards.geojson` and `ghmc-zones.geojson` from the same DataMeet repository (`Hyderabad/`).
+The boundaries were drawn in OpenStreetMap, so they are © OpenStreetMap contributors under the
+[Open Database Licence](https://www.openstreetmap.org/copyright); the two files this build writes carry the same terms.
+
+Three things in the map are not in the data and are set by hand in the script: the Secunderabad Cantonment
+(an empty notch in the ward file, filled from a rough outline), the stretch of border the Musi follows, and Hussain Sagar.

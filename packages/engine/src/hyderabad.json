@@ -1,0 +1,681 @@
+{
+ "regions": [
+  {
+   "id": "old",
+   "name": "Old City",
+   "bonus": 4
+  },
+  {
+   "id": "central",
+   "name": "Central Hyderabad",
+   "bonus": 6
+  },
+  {
+   "id": "secunderabad",
+   "name": "Secunderabad",
+   "bonus": 3
+  },
+  {
+   "id": "east",
+   "name": "East",
+   "bonus": 3
+  },
+  {
+   "id": "cyberabad",
+   "name": "Cyberabad",
+   "bonus": 5
+  },
+  {
+   "id": "northwest",
+   "name": "Kukatpally",
+   "bonus": 4
+  }
+ ],
+ "territories": [
+  {
+   "id": "CHA",
+   "name": "Charminar",
+   "region": "old",
+   "covers": "Charminar",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "FAL",
+   "name": "Falaknuma",
+   "region": "old",
+   "covers": "Falaknuma",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "CDG",
+   "name": "Chandrayangutta",
+   "region": "old",
+   "covers": "Chandrayangutta",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "SAN",
+   "name": "Santoshnagar",
+   "region": "old",
+   "covers": "Santoshnagar",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "MLK",
+   "name": "Malakpet",
+   "region": "old",
+   "covers": "Malakpet",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "RAJ",
+   "name": "Rajendranagar",
+   "region": "old",
+   "covers": "Rajendranagar",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "ABD",
+   "name": "Abids",
+   "region": "central",
+   "covers": "Abids",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "GOL",
+   "name": "Golconda",
+   "region": "central",
+   "covers": "Golconda",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "MEH",
+   "name": "Mehdipatnam",
+   "region": "central",
+   "covers": "Mehdipatnam",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "KHA",
+   "name": "Khairatabad",
+   "region": "central",
+   "covers": "Khairatabad",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "AMB",
+   "name": "Amberpet",
+   "region": "central",
+   "covers": "Amberpet",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "MUS",
+   "name": "Musheerabad",
+   "region": "central",
+   "covers": "Musheerabad",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "SEC",
+   "name": "Secunderabad",
+   "region": "secunderabad",
+   "covers": "Secunderabad",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "BEG",
+   "name": "Begumpet",
+   "region": "secunderabad",
+   "covers": "Begumpet",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "MKJ",
+   "name": "Malkajgiri",
+   "region": "secunderabad",
+   "covers": "Malkajgiri",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "ALW",
+   "name": "Alwal",
+   "region": "secunderabad",
+   "covers": "Alwal",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "CAN",
+   "name": "Cantonment",
+   "region": "secunderabad",
+   "covers": "Cantonment",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "KAP",
+   "name": "Kapra",
+   "region": "east",
+   "covers": "Kapra",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "UPP",
+   "name": "Uppal",
+   "region": "east",
+   "covers": "Uppal",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "HAY",
+   "name": "Hayathnagar",
+   "region": "east",
+   "covers": "Hayathnagar",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "LBN",
+   "name": "LB Nagar",
+   "region": "east",
+   "covers": "LB Nagar",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "DIL",
+   "name": "Dilsukhnagar",
+   "region": "east",
+   "covers": "Dilsukhnagar",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "BJH",
+   "name": "Banjara & Jubilee Hills",
+   "region": "cyberabad",
+   "covers": "Banjara & Jubilee Hills",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "YOU",
+   "name": "Yousufguda",
+   "region": "cyberabad",
+   "covers": "Yousufguda",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "MAD",
+   "name": "HITEC City",
+   "region": "cyberabad",
+   "covers": "HITEC City",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "GAC",
+   "name": "Gachibowli",
+   "region": "cyberabad",
+   "covers": "Gachibowli",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "MIY",
+   "name": "Miyapur",
+   "region": "cyberabad",
+   "covers": "Miyapur",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "LIN",
+   "name": "Lingampally",
+   "region": "cyberabad",
+   "covers": "Lingampally",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "PAT",
+   "name": "Patancheru",
+   "region": "cyberabad",
+   "covers": "Patancheru",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "KUK",
+   "name": "Kukatpally",
+   "region": "northwest",
+   "covers": "Kukatpally",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "MOO",
+   "name": "Moosapet",
+   "region": "northwest",
+   "covers": "Moosapet",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  },
+  {
+   "id": "BAL",
+   "name": "Balanagar",
+   "region": "northwest",
+   "covers": "Balanagar",
+   "mountain": false,
+   "outpost": false,
+   "suit": "ashva"
+  },
+  {
+   "id": "JEE",
+   "name": "Jeedimetla",
+   "region": "northwest",
+   "covers": "Jeedimetla",
+   "mountain": false,
+   "outpost": false,
+   "suit": "gaja"
+  },
+  {
+   "id": "GAJ",
+   "name": "Gajularamaram",
+   "region": "northwest",
+   "covers": "Gajularamaram",
+   "mountain": false,
+   "outpost": false,
+   "suit": "padati"
+  }
+ ],
+ "land": [
+  [
+   "ABD",
+   "AMB"
+  ],
+  [
+   "ABD",
+   "CHA"
+  ],
+  [
+   "ABD",
+   "GOL"
+  ],
+  [
+   "ABD",
+   "KHA"
+  ],
+  [
+   "ABD",
+   "MEH"
+  ],
+  [
+   "ABD",
+   "MLK"
+  ],
+  [
+   "ABD",
+   "MUS"
+  ],
+  [
+   "ALW",
+   "CAN"
+  ],
+  [
+   "ALW",
+   "JEE"
+  ],
+  [
+   "AMB",
+   "MLK"
+  ],
+  [
+   "AMB",
+   "MUS"
+  ],
+  [
+   "AMB",
+   "SEC"
+  ],
+  [
+   "AMB",
+   "UPP"
+  ],
+  [
+   "BAL",
+   "CAN"
+  ],
+  [
+   "BAL",
+   "JEE"
+  ],
+  [
+   "BAL",
+   "KUK"
+  ],
+  [
+   "BAL",
+   "MOO"
+  ],
+  [
+   "BEG",
+   "CAN"
+  ],
+  [
+   "BEG",
+   "KHA"
+  ],
+  [
+   "BEG",
+   "MOO"
+  ],
+  [
+   "BEG",
+   "MUS"
+  ],
+  [
+   "BEG",
+   "SEC"
+  ],
+  [
+   "BJH",
+   "GAC"
+  ],
+  [
+   "BJH",
+   "GOL"
+  ],
+  [
+   "BJH",
+   "KHA"
+  ],
+  [
+   "BJH",
+   "MAD"
+  ],
+  [
+   "BJH",
+   "MEH"
+  ],
+  [
+   "BJH",
+   "YOU"
+  ],
+  [
+   "CAN",
+   "JEE"
+  ],
+  [
+   "CAN",
+   "KAP"
+  ],
+  [
+   "CAN",
+   "MKJ"
+  ],
+  [
+   "CAN",
+   "MOO"
+  ],
+  [
+   "CDG",
+   "CHA"
+  ],
+  [
+   "CDG",
+   "FAL"
+  ],
+  [
+   "CDG",
+   "RAJ"
+  ],
+  [
+   "CDG",
+   "SAN"
+  ],
+  [
+   "CHA",
+   "FAL"
+  ],
+  [
+   "CHA",
+   "GOL"
+  ],
+  [
+   "CHA",
+   "MLK"
+  ],
+  [
+   "CHA",
+   "SAN"
+  ],
+  [
+   "DIL",
+   "HAY"
+  ],
+  [
+   "DIL",
+   "LBN"
+  ],
+  [
+   "DIL",
+   "MLK"
+  ],
+  [
+   "DIL",
+   "SAN"
+  ],
+  [
+   "DIL",
+   "UPP"
+  ],
+  [
+   "FAL",
+   "GOL"
+  ],
+  [
+   "FAL",
+   "RAJ"
+  ],
+  [
+   "GAC",
+   "LIN"
+  ],
+  [
+   "GAC",
+   "MAD"
+  ],
+  [
+   "GAC",
+   "MIY"
+  ],
+  [
+   "GAC",
+   "PAT"
+  ],
+  [
+   "GAJ",
+   "JEE"
+  ],
+  [
+   "GAJ",
+   "KUK"
+  ],
+  [
+   "GOL",
+   "MEH"
+  ],
+  [
+   "GOL",
+   "RAJ"
+  ],
+  [
+   "HAY",
+   "LBN"
+  ],
+  [
+   "JEE",
+   "KUK"
+  ],
+  [
+   "KAP",
+   "MKJ"
+  ],
+  [
+   "KAP",
+   "SEC"
+  ],
+  [
+   "KAP",
+   "UPP"
+  ],
+  [
+   "KHA",
+   "MEH"
+  ],
+  [
+   "KHA",
+   "MOO"
+  ],
+  [
+   "KHA",
+   "MUS"
+  ],
+  [
+   "KHA",
+   "YOU"
+  ],
+  [
+   "KUK",
+   "MAD"
+  ],
+  [
+   "KUK",
+   "MIY"
+  ],
+  [
+   "KUK",
+   "MOO"
+  ],
+  [
+   "LBN",
+   "SAN"
+  ],
+  [
+   "LIN",
+   "MIY"
+  ],
+  [
+   "LIN",
+   "PAT"
+  ],
+  [
+   "MAD",
+   "MIY"
+  ],
+  [
+   "MAD",
+   "MOO"
+  ],
+  [
+   "MAD",
+   "YOU"
+  ],
+  [
+   "MKJ",
+   "SEC"
+  ],
+  [
+   "MLK",
+   "SAN"
+  ],
+  [
+   "MOO",
+   "YOU"
+  ],
+  [
+   "MUS",
+   "SEC"
+  ],
+  [
+   "SEC",
+   "UPP"
+  ]
+ ],
+ "sea": [],
+ "rivers": [
+  [
+   "FAL",
+   "GOL"
+  ],
+  [
+   "CHA",
+   "GOL"
+  ],
+  [
+   "CHA",
+   "ABD"
+  ],
+  [
+   "MLK",
+   "ABD"
+  ],
+  [
+   "MLK",
+   "AMB"
+  ]
+ ],
+ "walls": [],
+ "samrajya": 21
+}

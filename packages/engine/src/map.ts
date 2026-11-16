@@ -1,4 +1,5 @@
 import raw from './map.json';
+import hyderabad from './hyderabad.json';
 import mumbai from './mumbai.json';
 
 export type TerritoryId = string;
@@ -40,10 +41,11 @@ export interface MapData {
 export const BASE_MAP = raw as unknown as MapData;
 
 /** The maps a game can be played on. */
-export type MapId = 'india' | 'mumbai';
+export type MapId = 'india' | 'mumbai' | 'hyderabad';
 export const MAPS: Record<MapId, { name: string; blurb: string; data: MapData }> = {
   india: { name: 'India', blurb: 'The full game: 43 territories across the whole country.', data: BASE_MAP },
   mumbai: { name: 'Mumbai', blurb: 'A quicker game: 32 territories across Greater Mumbai, Navi Mumbai and Mira–Bhayandar.', data: mumbai as unknown as MapData },
+  hyderabad: { name: 'Hyderabad', blurb: 'A city game: 34 territories from the Old City to Cyberabad, with the Musi between.', data: hyderabad as unknown as MapData },
 };
 export const isMapId = (x: unknown): x is MapId => typeof x === 'string' && x in MAPS;
 

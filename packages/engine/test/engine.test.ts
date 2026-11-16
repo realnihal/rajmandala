@@ -18,6 +18,7 @@ import {
   isConnected,
   isMonsoon,
   maxAttackDice,
+  neighbors,
   setValue,
   territoriesOf,
   validateMap,
@@ -604,6 +605,31 @@ describe('more than one map', () => {
     selectMap('india');
   });
 
+  it('has a valid Hyderabad map, where the Musi is a river', () => {
+    selectMap('hyderabad');
+    expect(validateMap()).toEqual([]);
+    expect(TERRITORIES).toHaveLength(34);
+    expect(samrajyaTarget()).toBe(MAPS.hyderabad.data.samrajya);
+    let s = createGame({ players: NAMES.slice(0, 2), seed: 3, map: 'hyderabad' }).state;
+    // Across the river an attacker rolls one die fewer, and in the Monsoon cannot cross at all.
+    expect(maxAttackDice(s, 'ABD', 'CHA')).toBe(2);
+    expect(maxAttackDice(s, 'ABD', 'MEH')).toBe(3);
+    expect(neighbors('CHA', true)).toContain('ABD');
+    expect(neighbors('CHA', false)).not.toContain('ABD');
+    // The river never cuts the city in two: the ends of it can be walked around.
+    const reached = new Set(['CHA']);
+    const stack = ['CHA'];
+    while (stack.length) for (const n of neighbors(stack.pop()!, false)) if (!reached.has(n)) reached.add(n), stack.push(n);
+    expect(reached.size).toBe(34);
+    const rand = lcg(5);
+    for (let i = 0; i < 60_000 && s.phase !== 'finished'; i++) {
+      const p = awaitedPlayers(s)[0];
+      s = applyAction(s, p, botAction(s, p, rand, 'play')!).state;
+    }
+    expect(s.phase).toBe('finished');
+    selectMap('india');
+  });
+
   it('keeps games on different maps apart when they are played side by side', () => {
     let india = started(3, 4);
     let city = createGame({ players: NAMES.slice(0, 3), seed: 4, map: 'mumbai' }).state;
@@ -621,7 +647,7 @@ describe('more than one map', () => {
     }
     expect(Object.keys(india.territories)).toHaveLength(43);
     expect(Object.keys(city.territories)).toHaveLength(32);
-    expect(Object.keys(MAPS)).toEqual(['india', 'mumbai']);
+    expect(Object.keys(MAPS)).toEqual(['india', 'mumbai', 'hyderabad']);
     selectMap('india');
   });
 });

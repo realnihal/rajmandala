@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { MAPS, REGIONS, TERRITORIES, activeMap, samrajyaTarget } from '@rajmandala/engine';
+import { MAPS, REGIONS, RIVER_EDGES, SEA_EDGES, TERRITORIES, activeMap, samrajyaTarget } from '@rajmandala/engine';
 
 /** The rules of the game on one page, shown over the board. */
 export function Rules({ onClose }: { onClose: () => void }) {
@@ -63,7 +63,7 @@ export function Rules({ onClose }: { onClose: () => void }) {
             <b>Mountains</b> (peak symbol): attackers roll at most 2 dice into them.
           </li>
           <li>
-            <b>Monsoon:</b> every fourth round, sea routes close and every attack rolls one die fewer. It is announced a round ahead.
+            <b>Monsoon:</b> every fourth round, sea routes and river crossings close and every attack rolls one die fewer. It is announced a round ahead.
           </li>
           <li>
             <b>Capturing a capital</b> from the player who founded it adds 3 armies to the force that moves in.
@@ -77,14 +77,26 @@ export function Rules({ onClose }: { onClose: () => void }) {
                 <b>The Siliguri corridor:</b> North Bengal is the only land route into the Northeast.
               </li>
             </>
+          ) : activeMap() === 'hyderabad' ? (
+            <li>
+              <b>The Musi</b> runs between the Old City and the centre. Attackers roll one die fewer across it, and in the Monsoon it
+              cannot be crossed: the only ways round are through Rajendranagar in the west and Dilsukhnagar in the east.
+            </li>
           ) : (
             <li>
               <b>Sanjay Gandhi National Park</b> cannot be crossed: Mulund does not connect to Borivali, Kandivali, Malad or Goregaon. The Vashi and Airoli bridges join the city to Navi Mumbai.
             </li>
           )}
-          <li>
-            <b>Sea routes</b> (dashed lines) connect the islands and some coasts as if they were neighbours.
-          </li>
+          {SEA_EDGES.length > 0 && (
+            <li>
+              <b>Sea routes</b> (dashed lines) connect the islands and some coasts as if they were neighbours.
+            </li>
+          )}
+          {RIVER_EDGES.length > 0 && activeMap() !== 'hyderabad' && (
+            <li>
+              <b>Rivers</b> drawn along a border cost attackers a die and close in the Monsoon.
+            </li>
+          )}
         </ul>
 
         <h2>Cards</h2>

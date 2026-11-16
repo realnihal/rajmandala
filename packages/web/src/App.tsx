@@ -14,6 +14,9 @@ import {
   currentPlayer,
   isConnected,
   isMonsoon,
+  isRiver,
+  RIVER_EDGES,
+  SEA_EDGES,
   maxAttackDice,
   neighbors,
   randomPlacement,
@@ -618,7 +621,7 @@ export function Game(props: GameProps) {
     }
     if (phase === 'attack') {
       const { from, to } = sel;
-      const max = from && to ? Math.min(maxAttackDice(game, to), armiesAt(from) - 1) : 0;
+      const max = from && to ? Math.min(maxAttackDice(game, to, from), armiesAt(from) - 1) : 0;
       return (
         <>
           {!from && <p>Click one of your territories with 2 or more armies, then an enemy next to it.</p>}
@@ -628,11 +631,12 @@ export function Game(props: GameProps) {
               <p>
                 <b>{territory(from).name}</b> ({armiesAt(from)}) attacks <b>{territory(to).name}</b> ({armiesAt(to)}),
                 held by {name(game.territories[to].owner)}.
-                {maxAttackDice(game, to) < 3 && (
+                {maxAttackDice(game, to, from) < 3 && (
                   <span className="hint">
                     {' '}
-                    At most {maxAttackDice(game, to)} {maxAttackDice(game, to) === 1 ? 'die' : 'dice'}
+                    At most {maxAttackDice(game, to, from)} {maxAttackDice(game, to, from) === 1 ? 'die' : 'dice'}
                     {territory(to).mountain ? ' into mountains' : ''}
+                    {isRiver(from, to) ? ' across the river' : ''}
                     {monsoon ? ' in the Monsoon' : ''}.
                   </span>
                 )}
@@ -778,11 +782,17 @@ export function Game(props: GameProps) {
           </span>
           <span className="chip">Tower: a capital, in its founder's colour</span>
           <span className="chip">Peak: mountain, attackers roll one die fewer</span>
-          <span className="chip">┄ sea route</span>
+          {SEA_EDGES.length > 0 && <span className="chip">┄ sea route</span>}
+          {RIVER_EDGES.length > 0 && <span className="chip">River: attackers roll one die fewer; closed in the Monsoon</span>}
           <span className="credit">
             {(game.map ?? 'india') === 'india' ? (
               <>
                 Boundaries: <a href="https://github.com/datameet/maps">DataMeet India community</a>, CC BY 2.5 IN
+              </>
+            ) : game.map === 'hyderabad' ? (
+              <>
+                Boundaries: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, via{' '}
+                <a href="https://github.com/datameet/Municipal_Spatial_Data">DataMeet</a>
               </>
             ) : (
               <>

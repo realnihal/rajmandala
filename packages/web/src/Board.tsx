@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { BRIDGE_EDGES, OUTPOSTS, REGIONS, SEA_EDGES, TERRITORIES, isMonsoon, selectMap } from '@rajmandala/engine';
+import { BRIDGE_EDGES, MAPS, OUTPOSTS, REGIONS, SEA_EDGES, TERRITORIES, isMonsoon, selectMap } from '@rajmandala/engine';
 import type { GameView, MapId, TerritoryId } from '@rajmandala/engine';
 import indiaShapes from './mapShapes.json';
+import hyderabadShapes from './hyderabadShapes.json';
 import mumbaiShapes from './mumbaiShapes.json';
 import { OUTPOST_LINE, REGION_LINE, TOKEN_NUDGE } from './theme';
 
@@ -61,7 +62,13 @@ interface Art {
     walls: Wall[];
     park?: string;
     parkLabel?: { x: number; y: number };
+    /** Stretches of border that a river follows. */
+    rivers?: { pair: string; d: string }[];
+    riverName?: string;
+    lakes?: { name: string; d: string; x: number; y: number }[];
   };
+  /** True for a map with no coast: the board around it is countryside, not sea. */
+  inland?: boolean;
   /** Where a region's name is lettered, relative to the middle of the region. */
   regionNames: Record<string, { dx: number; dy: number; rotate: number }>;
   seas: Lettering[];
@@ -114,6 +121,24 @@ const ART: Record<MapId, Art> = {
     nudge: {},
     chart: { right: 252, bottom: 204 },
     credit: 'mumbai',
+  },
+  hyderabad: {
+    shapes: hyderabadShapes as unknown as Art['shapes'],
+    inland: true,
+    // The city is too closely packed to letter across, so the names stand in the country around it.
+    regionNames: {
+      old: { dx: 70, dy: 185, rotate: 0 },
+      central: { dx: -445, dy: 60, rotate: 0 },
+      secunderabad: { dx: 250, dy: -190, rotate: 0 },
+      east: { dx: 125, dy: -60, rotate: 82 },
+      cyberabad: { dx: -90, dy: 235, rotate: 24 },
+      northwest: { dx: -190, dy: -175, rotate: -24 },
+    },
+    seas: [],
+    landCentre: { x: 650, y: 490 },
+    nudge: { KHA: { dx: -30, dy: 26 } }, // clear of Hussain Sagar
+    chart: { right: 1148, bottom: 222 },
+    credit: 'hyderabad',
   },
 };
 
@@ -385,16 +410,23 @@ export default function Board(props: Props) {
       </div>
     <svg
       ref={svg}
-      className={`board ${monsoon ? 'monsoon' : ''} ${close ? 'fighting' : ''} ${zoomed && !close ? 'zoomed' : ''}`}
+      className={`board ${art.inland ? 'inland' : ''} ${monsoon ? 'monsoon' : ''} ${close ? 'fighting' : ''} ${zoomed && !close ? 'zoomed' : ''}`}
       viewBox={box.map((v) => Math.round(v * 10) / 10).join(' ')}
       role="group"
-      aria-label="Map of India"
+      aria-label={`Map of ${MAPS[game.map ?? 'india'].name}`}
     >
       <defs>
         <radialGradient id="sea" cx="45%" cy="45%" r="75%">
           <stop offset="0" stopColor="#e3eff3" />
           <stop offset="1" stopColor="#bfd8e2" />
         </radialGradient>
+        <radialGradient id="country" cx="50%" cy="48%" r="75%">
+          <stop offset="0" stopColor="#f1ead6" />
+          <stop offset="1" stopColor="#d9cfae" />
+        </radialGradient>
+        <pattern id="fields" width="46" height="46" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
+          <path d="M0 12 H46 M0 34 H46 M14 0 V12 M36 12 V34 M8 34 V46" fill="none" stroke="#8a7a4a" strokeOpacity="0.14" strokeWidth="1" />
+        </pattern>
         <pattern id="rain" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(20)">
           <line x1="7" y1="0" x2="7" y2="7" stroke="#20506e" strokeOpacity="0.25" strokeWidth="1.2" />
         </pattern>
@@ -421,8 +453,8 @@ export default function Board(props: Props) {
         ))}
       </defs>
 
-      <rect width={W} height={H} fill="url(#sea)" />
-      <rect width={W} height={H} fill="url(#waves)" />
+      <rect width={W} height={H} fill={art.inland ? 'url(#country)' : 'url(#sea)'} />
+      {art.inland ? <rect width={W} height={H} fill="url(#fields)" /> : <rect width={W} height={H} fill="url(#waves)" />}
       <rect width={W} height={H} fill="url(#vignette)" />
       <g className="seas" aria-hidden="true">
         {art.seas.map((s) => (
@@ -497,6 +529,30 @@ export default function Board(props: Props) {
           );
         })}
       </g>
+
+      {/* A river along a border: harder to attack across, and closed in the Monsoon. */}
+      {art.shapes.rivers && (
+        <g className={`rivers ${monsoon ? 'flood' : ''}`} aria-hidden="true">
+          {art.shapes.rivers.map((r, i) => (
+            <path key={i} className="bank" d={r.d} />
+          ))}
+          {art.shapes.rivers.map((r, i) => (
+            <path key={i} className="water" d={r.d} />
+          ))}
+        </g>
+      )}
+      {art.shapes.lakes && (
+        <g className="lakes" aria-hidden="true">
+          {art.shapes.lakes.map((l) => (
+            <g key={l.name}>
+              <path d={l.d} />
+              <text x={l.x} y={l.y + 3}>
+                {l.name}
+              </text>
+            </g>
+          ))}
+        </g>
+      )}
 
       {/* Walls: ranges and forest along a border that armies cannot cross. */}
       <g className="walls">
