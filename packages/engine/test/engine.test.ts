@@ -583,8 +583,8 @@ describe('more than one map', () => {
   it('has a valid Mumbai map, a smaller quick game', () => {
     selectMap('mumbai');
     expect(validateMap()).toEqual([]);
-    expect(TERRITORIES).toHaveLength(29);
-    expect(samrajyaTarget()).toBe(17);
+    expect(TERRITORIES).toHaveLength(32);
+    expect(samrajyaTarget()).toBe(MAPS.mumbai.data.samrajya);
     selectMap('india');
     expect(TERRITORIES).toHaveLength(43);
     expect(samrajyaTarget()).toBe(28);
@@ -593,8 +593,8 @@ describe('more than one map', () => {
   it.each([2, 3, 4, 6])('plays a whole %i-player game on Mumbai, with armies scaled to the map', (n) => {
     let s = createGame({ players: NAMES.slice(0, n), seed: n * 13, map: 'mumbai' }).state;
     expect(s.map).toBe('mumbai');
-    expect(Object.keys(s.territories)).toHaveLength(29);
-    if (n === 2) expect(territoriesOf(s, s.turnOrder[0])).toHaveLength(9);
+    expect(Object.keys(s.territories)).toHaveLength(32);
+    if (n === 2) expect(territoriesOf(s, s.turnOrder[0])).toHaveLength(10);
     const rand = lcg(n);
     for (let i = 0; i < 60_000 && s.phase !== 'finished'; i++) {
       const p = awaitedPlayers(s)[0];
@@ -620,7 +620,7 @@ describe('more than one map', () => {
       }
     }
     expect(Object.keys(india.territories)).toHaveLength(43);
-    expect(Object.keys(city.territories)).toHaveLength(29);
+    expect(Object.keys(city.territories)).toHaveLength(32);
     expect(Object.keys(MAPS)).toEqual(['india', 'mumbai']);
     selectMap('india');
   });

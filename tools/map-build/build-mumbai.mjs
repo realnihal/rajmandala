@@ -1,267 +1,325 @@
 /**
- * Builds the Mumbai quick-game map: a stylised diagram, not a survey.
+ * Builds the Mumbai map from real municipal boundaries.
  *
  *   node tools/map-build/build-mumbai.mjs
  *
- * No boundary data is used. The coastline is a hand-simplified outline and each
- * neighbourhood is the area nearest to its marker (a Voronoi cell) inside that
- * outline. Which neighbourhoods touch is read off the drawing, so the picture
- * and the game's connections always agree.
+ * Greater Mumbai's 24 wards each become a territory, named after their main
+ * neighbourhood. Navi Mumbai's 111 electoral wards are grouped into six nodes
+ * by latitude (the data carries ward numbers only, so the node boundaries are
+ * approximate). Mira–Bhayandar is one territory, and Elephanta Island is
+ * drawn by hand as it is in none of the files.
  *
  * Writes packages/engine/src/mumbai.json (the map as game data) and
  * packages/web/src/mumbaiShapes.json (the artwork).
+ *
+ * Boundary data: DataMeet India community, github.com/datameet/Municipal_Spatial_Data
+ * (Mumbai, NMMC, Mira-Bhayandar), Creative Commons Attribution-ShareAlike 2.5 India.
+ * The shapes this script writes are derived from it and carry the same licence.
  */
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import mapshaper from 'mapshaper';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const here = dirname(fileURLToPath(import.meta.url));
+const root = join(here, '..', '..');
+mkdirSync(join(here, 'build'), { recursive: true });
+process.chdir(here); // mapshaper command strings cannot contain paths with spaces
 
 // ---------------------------------------------------------------- the design
 
 const REGIONS = [
   { id: 'south', name: 'South Mumbai', bonus: 3 },
-  { id: 'central', name: 'Central Mumbai', bonus: 6 },
+  { id: 'central', name: 'Central Mumbai', bonus: 4 },
   { id: 'western', name: 'Western Suburbs', bonus: 6 },
   { id: 'eastern', name: 'Eastern Suburbs', bonus: 5 },
+  { id: 'navi', name: 'Navi Mumbai', bonus: 3 },
 ];
 
-/** id, name, region, [longitude, latitude] of its marker, and whether it is hill country. */
-const PLACES = [
-  ['COL', 'Colaba', 'south', [72.815, 18.908]],
-  ['FOR', 'Fort', 'south', [72.836, 18.932]],
-  ['MAR', 'Marine Lines', 'south', [72.822, 18.945]],
-  ['MAL', 'Malabar Hill', 'south', [72.803, 18.957]],
-  ['BYC', 'Byculla', 'south', [72.830, 18.974]],
-  ['MAZ', 'Mazgaon', 'south', [72.847, 18.962]],
-  ['WOR', 'Worli', 'central', [72.815, 18.999]],
-  ['LPR', 'Lower Parel', 'central', [72.830, 18.995]],
-  ['PAR', 'Parel–Sewri', 'central', [72.850, 18.994]],
-  ['DAD', 'Dadar', 'central', [72.838, 19.019]],
-  ['MAH', 'Mahim', 'central', [72.842, 19.040]],
-  ['DHA', 'Dharavi–Sion', 'central', [72.860, 19.040]],
-  ['WAD', 'Wadala', 'central', [72.866, 19.016]],
-  ['BAN', 'Bandra', 'western', [72.836, 19.060]],
-  ['SAN', 'Santacruz', 'western', [72.842, 19.083]],
-  ['VPJ', 'Juhu–Vile Parle', 'western', [72.834, 19.104]],
-  ['AND', 'Andheri', 'western', [72.848, 19.127]],
-  ['GOR', 'Goregaon', 'western', [72.850, 19.160]],
-  ['MLD', 'Malad', 'western', [72.838, 19.187]],
-  ['KAN', 'Kandivali', 'western', [72.846, 19.209]],
-  ['BOR', 'Borivali', 'western', [72.850, 19.232]],
-  ['DAH', 'Dahisar', 'western', [72.856, 19.256]],
-  ['KUR', 'Kurla', 'eastern', [72.882, 19.070]],
-  ['CHE', 'Chembur', 'eastern', [72.900, 19.050]],
-  ['TRO', 'Trombay–Mankhurd', 'eastern', [72.932, 19.030]],
-  ['GHA', 'Ghatkopar', 'eastern', [72.910, 19.086]],
-  ['POW', 'Powai', 'eastern', [72.900, 19.122], true],
-  ['VIK', 'Vikhroli–Bhandup', 'eastern', [72.936, 19.128]],
-  ['MUL', 'Mulund', 'eastern', [72.955, 19.176]],
+/** Greater Mumbai's wards: the ward's code in the data, then the territory it becomes. */
+const WARDS = {
+  A: ['COL', 'Colaba–Fort', 'south'],
+  B: ['DON', 'Dongri', 'south'],
+  C: ['KAL', 'Kalbadevi', 'south'],
+  D: ['MAL', 'Malabar Hill', 'south'],
+  E: ['BYC', 'Byculla', 'south'],
+  'F/S': ['PAR', 'Parel–Sewri', 'central'],
+  'F/N': ['MAT', 'Matunga–Sion', 'central'],
+  'G/S': ['WOR', 'Worli', 'central'],
+  'G/N': ['DAD', 'Dadar–Mahim', 'central'],
+  'H/W': ['BAN', 'Bandra', 'western'],
+  'H/E': ['SAN', 'Santacruz', 'western'],
+  'K/W': ['JUH', 'Juhu–Versova', 'western'],
+  'K/E': ['AND', 'Andheri', 'western'],
+  'P/S': ['GOR', 'Goregaon', 'western'],
+  'P/N': ['MLD', 'Malad', 'western'],
+  'R/S': ['KAN', 'Kandivali', 'western'],
+  'R/C': ['BOR', 'Borivali', 'western'],
+  'R/N': ['DAH', 'Dahisar', 'western'],
+  L: ['KUR', 'Kurla', 'eastern'],
+  'M/E': ['TRO', 'Mankhurd–Trombay', 'eastern'],
+  'M/W': ['CHE', 'Chembur', 'eastern'],
+  N: ['GHA', 'Ghatkopar', 'eastern'],
+  S: ['BHA', 'Bhandup–Powai', 'eastern'],
+  T: ['MUL', 'Mulund', 'eastern'],
+};
+/** Navi Mumbai's nodes, north to south: a ward belongs to the first whose southern limit it lies above. */
+const NAVI = [
+  ['AIR', 'Airoli', 19.14],
+  ['GHN', 'Ghansoli', 19.108],
+  ['KOP', 'Kopar Khairane', 19.085],
+  ['VSH', 'Vashi', 19.06],
+  ['NER', 'Nerul', 19.027],
+  ['BEL', 'Belapur', -90],
 ];
+const OTHERS = [
+  ['MIR', 'Mira–Bhayandar', 'western'],
+  ['ELE', 'Elephanta Island', null],
+];
+/** Elephanta Island, drawn as a small island at its true position. [longitude, latitude] */
+const ELEPHANTA = [72.9315, 18.9633];
 
-/** Sanjay Gandhi National Park: drawn as forest, belongs to nobody, and blocks the way through. */
-const PARK = [[72.905, 19.180], [72.900, 19.215], [72.893, 19.245]];
-
-/** Crossings over water. Like all sea routes, they close in the Monsoon. */
+/** Roads and bridges that join territories whose shapes do not share a border. */
+const BRIDGES = [
+  ['TRO', 'VSH'], // Vashi Bridge
+  ['MUL', 'AIR'], // Airoli Bridge
+];
+/** Crossings over open water. Like all sea routes, they close in the Monsoon. */
 const SEA = [
   ['WOR', 'BAN'], // the Bandra–Worli Sea Link
-  ['COL', 'TRO'], // the harbour ferry
+  ['PAR', 'BEL'], // Atal Setu, the harbour bridge from Sewri
+  ['COL', 'ELE'], // the Gateway of India ferry
+  ['ELE', 'BEL'], // the Belapur ferry
 ];
-
-/** A simplified coastline, clockwise from the north-west. [longitude, latitude] */
-const COAST = [
-  [72.795, 19.266], [72.790, 19.232], [72.786, 19.192], [72.798, 19.162], [72.804, 19.140], [72.818, 19.112],
-  [72.822, 19.086], [72.817, 19.058], [72.822, 19.044], [72.834, 19.041], [72.832, 19.028], [72.824, 19.016],
-  [72.811, 19.002], [72.807, 18.986], [72.811, 18.974], [72.799, 18.961], [72.795, 18.946], [72.806, 18.951],
-  [72.816, 18.953], [72.822, 18.940], [72.820, 18.925], [72.812, 18.915], [72.806, 18.895], [72.820, 18.900],
-  [72.832, 18.915], [72.843, 18.935], [72.850, 18.960], [72.861, 18.990], [72.876, 19.008], [72.887, 19.021],
-  [72.901, 19.004], [72.931, 18.999], [72.956, 19.020], [72.961, 19.046], [72.946, 19.070], [72.951, 19.100],
-  [72.961, 19.140], [72.976, 19.170], [72.981, 19.191], [72.956, 19.202], [72.931, 19.236], [72.901, 19.262],
-  [72.866, 19.272],
+/** Sanjay Gandhi National Park lies along these borders; armies cannot cross it. */
+const PARK_WALLS = [
+  ['BOR', 'MUL'],
+  ['KAN', 'MUL'],
+  ['MLD', 'MUL'],
+  ['GOR', 'MUL'],
 ];
+const PARK_NAME = 'Sanjay Gandhi National Park';
+/** Territories needed to win. Set by simulation so the game is quicker than on India. */
+const SAMRAJYA = 20;
 
-// --------------------------------------------------------------- the drawing
+// ------------------------------------------------- 1. label every shape, merge
 
-const WIDTH = 1000;
-const PAD = 60;
-const MID_LAT = 19.08;
-const lons = COAST.map((p) => p[0]);
-const lats = COAST.map((p) => p[1]);
-const [west, east, south, north] = [Math.min(...lons), Math.max(...lons), Math.min(...lats), Math.max(...lats)];
-// Not to scale, on purpose. The real peninsula is too narrow to play on, so it is drawn about half
-// as wide again, and the crowded southern end is given more than its share of the height.
-const WIDEN = 1.45;
-const SOUTH_OF = 19.05; // latitude below which the map is stretched
-const SOUTH_SHARE = 0.52; // of the height
-const squeeze = Math.cos((MID_LAT * Math.PI) / 180) * WIDEN;
-const HEIGHT = 1141;
-const tall = HEIGHT - 2 * PAD;
-const scale = tall / (north - south);
-const landWidth = (east - west) * squeeze * scale;
-const left = (WIDTH - landWidth) / 2 + 40;
-const down = (lat) =>
-  lat >= SOUTH_OF
-    ? ((north - lat) / (north - SOUTH_OF)) * (1 - SOUTH_SHARE) * tall
-    : (1 - SOUTH_SHARE) * tall + ((SOUTH_OF - lat) / (SOUTH_OF - south)) * SOUTH_SHARE * tall;
-const px = ([lon, lat]) => [left + (lon - west) * squeeze * scale, PAD + down(lat)];
-const r1 = (n) => Math.round(n * 10) / 10;
-
-const outline = COAST.map(px);
-const sites = [
-  ...PLACES.map(([id, , , at]) => ({ id, p: px(at) })),
-  ...PARK.map((at, i) => ({ id: `PARK${i}`, p: px(at), park: true })),
-];
-
-/** Keeps the part of a polygon on the side of point `a` of the line midway between `a` and `b`. */
-function clipToNearer(poly, a, b) {
-  const mx = (a[0] + b[0]) / 2;
-  const my = (a[1] + b[1]) / 2;
-  const nx = b[0] - a[0];
-  const ny = b[1] - a[1];
-  const side = ([x, y]) => (x - mx) * nx + (y - my) * ny; // negative: nearer to a
-  const out = [];
-  for (let i = 0; i < poly.length; i++) {
-    const p = poly[i];
-    const q = poly[(i + 1) % poly.length];
-    const sp = side(p);
-    const sq = side(q);
-    if (sp <= 0) out.push(p);
-    if (sp < 0 !== sq < 0 && sp !== sq) {
-      const t = sp / (sp - sq);
-      out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
-    }
-  }
-  return out;
+const read = (f) => JSON.parse(readFileSync(join(here, 'data/mumbai', f), 'utf8'));
+function centreLat(geom) {
+  const ring = geom.type === 'Polygon' ? geom.coordinates[0] : geom.coordinates[0][0];
+  return ring.reduce((n, p) => n + p[1], 0) / ring.length;
 }
-
-const cells = new Map();
-for (const s of sites) {
-  let cell = outline;
-  for (const o of sites) if (o !== s && cell.length) cell = clipToNearer(cell, s.p, o.p);
-  if (cell.length < 3) throw new Error(`${s.id} has no room on the map`);
-  cells.set(s.id, cell);
+const labelled = [];
+for (const f of read('BMC_Wards.geojson').features) {
+  const ward = WARDS[f.properties.name];
+  if (!ward) throw new Error(`No territory for ward "${f.properties.name}"`);
+  labelled.push({ type: 'Feature', properties: { terr: ward[0] }, geometry: f.geometry });
 }
+for (const f of read('NMC_ElectoralWards.geojson').features) {
+  const node = NAVI.find(([, , southLimit]) => centreLat(f.geometry) >= southLimit);
+  labelled.push({ type: 'Feature', properties: { terr: node[0] }, geometry: f.geometry });
+}
+for (const f of read('Mira-Bhayandar.geojson').features) labelled.push({ type: 'Feature', properties: { terr: 'MIR' }, geometry: f.geometry });
+{
+  const [lon, lat] = ELEPHANTA;
+  const ring = Array.from({ length: 13 }, (_, i) => {
+    const a = (i / 12) * 2 * Math.PI;
+    return [lon + 0.0085 * Math.cos(a) * (1 + 0.25 * Math.sin(3 * a)), lat + 0.0075 * Math.sin(a) * (1 + 0.2 * Math.cos(2 * a))];
+  });
+  ring[12] = ring[0];
+  labelled.push({ type: 'Feature', properties: { terr: 'ELE' }, geometry: { type: 'Polygon', coordinates: [ring] } });
+}
+writeFileSync(join(here, 'build/mumbai-labelled.geojson'), JSON.stringify({ type: 'FeatureCollection', features: labelled }));
 
-// Two cells touch where an edge of one runs along the line midway between their markers.
-const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-const borders = new Map(); // "A|B" -> segments
-for (const s of sites) {
-  const cell = cells.get(s.id);
-  for (let i = 0; i < cell.length; i++) {
-    const a = cell[i];
-    const b = cell[(i + 1) % cell.length];
-    if (dist(a, b) < 0.5) continue;
-    const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const own = dist(mid, s.p);
-    const other = sites.find((o) => o !== s && Math.abs(dist(mid, o.p) - own) < 0.01);
-    if (!other) continue; // coastline
-    const key = [s.id, other.id].sort().join('|');
-    if (!borders.has(key)) borders.set(key, []);
-    if (s.id < other.id) borders.get(key).push([a, b]);
+await mapshaper.runCommands(
+  [
+    '-i build/mumbai-labelled.geojson',
+    '-proj +proj=utm +zone=43 +datum=WGS84',
+    '-clean',
+    '-dissolve terr',
+    '-simplify dp interval=55 keep-shapes',
+    '-clean',
+    '-o build/mumbai.topojson format=topojson no-quantization',
+    '-o build/mumbai.geojson format=geojson',
+  ].join(' '),
+);
+
+// ------------------------------------------------------- 2. who borders whom
+
+const topo = JSON.parse(readFileSync(join(here, 'build/mumbai.topojson'), 'utf8'));
+const layer = Object.values(topo.objects)[0];
+const arcOwners = new Map();
+for (const g of layer.geometries) {
+  for (const a of JSON.stringify(g.arcs).match(/-?\d+/g).map(Number)) {
+    const i = a < 0 ? ~a : a;
+    if (!arcOwners.has(i)) arcOwners.set(i, new Set());
+    arcOwners.get(i).add(g.properties.terr);
   }
 }
-const MIN_BORDER = 6; // px; anything shorter is a corner touching, not a border
-const land = [];
-for (const [key, segs] of borders) {
-  const [a, b] = key.split('|');
-  const length = segs.reduce((n, [p, q]) => n + dist(p, q), 0);
-  if (a.startsWith('PARK') || b.startsWith('PARK') || length < MIN_BORDER) continue;
-  land.push([a, b]);
+const arcPoints = (i) => topo.arcs[i];
+const pairKey = (a, b) => [a, b].sort().join('-');
+const sharedKm = new Map();
+for (const [i, owners] of arcOwners) {
+  if (owners.size !== 2) continue;
+  const pts = arcPoints(i);
+  let len = 0;
+  for (let j = 1; j < pts.length; j++) len += Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1]);
+  const key = pairKey(...owners);
+  sharedKm.set(key, (sharedKm.get(key) ?? 0) + len / 1000);
 }
+const walls = new Set(PARK_WALLS.map(([a, b]) => pairKey(a, b)));
+const MIN_BORDER_KM = 0.25; // shorter than this is two corners meeting, not a border
+const land = [...sharedKm].filter(([key, km]) => km >= MIN_BORDER_KM && !walls.has(key)).map(([key]) => key.split('-'));
+for (const key of walls) if (!sharedKm.has(key)) console.log(`note: the park wall ${key} is not needed; those shapes do not touch`);
 
-// ----------------------------------------------------------------- game data
+// ------------------------------------------------------------ 3. game data
 
+const places = [
+  ...Object.values(WARDS).map(([id, name, region]) => ({ id, name, region })),
+  ...NAVI.map(([id, name]) => ({ id, name, region: 'navi' })),
+  ...OTHERS.map(([id, name, region]) => ({ id, name, region })),
+];
 const SUITS = ['padati', 'ashva', 'gaja'];
 const mapData = {
   regions: REGIONS,
-  territories: PLACES.map(([id, name, region, , hill], i) => ({
-    id,
-    name,
-    covers: name,
-    region,
-    mountain: hill === true,
-    outpost: false,
-    suit: SUITS[i % 3],
-  })),
+  territories: places.map((p, i) => ({ ...p, covers: p.name, mountain: false, outpost: p.region === null, suit: SUITS[i % 3] })),
   land: land.sort((x, y) => x.join().localeCompare(y.join())),
+  bridges: BRIDGES,
   sea: SEA,
-  walls: [],
-  // Chosen by simulation: at 17 of 29 a game runs about a quarter to a third shorter than on India.
-  samrajya: 17,
+  walls: PARK_WALLS.filter(([a, b]) => sharedKm.has(pairKey(a, b))).map(([a, b]) => ({ a, b, name: PARK_NAME, kind: 'forest' })),
+  samrajya: SAMRAJYA,
 };
 writeFileSync(join(root, 'packages/engine/src/mumbai.json'), JSON.stringify(mapData, null, 1));
 
-// ------------------------------------------------------------------- artwork
+// -------------------------------------------------------------- 4. artwork
 
-const pathOf = (poly) => `M${poly.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}Z`;
-function centre(poly) {
+const HEIGHT = 1141;
+const PAD = 46;
+const geo = JSON.parse(readFileSync(join(here, 'build/mumbai.geojson'), 'utf8'));
+const polygonsOf = (geom) => (geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates);
+let [minX, maxX, minY, maxY] = [Infinity, -Infinity, Infinity, -Infinity];
+for (const f of geo.features)
+  for (const poly of polygonsOf(f.geometry))
+    for (const [x, y] of poly[0]) {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+const scale = (HEIGHT - 2 * PAD) / (maxY - minY);
+const SEA_WEST = 150; // open water left of the land, for lettering and the compass
+const WIDTH = Math.ceil((maxX - minX) * scale + SEA_WEST + 2 * PAD);
+const px = ([x, y]) => [(x - minX) * scale + PAD + SEA_WEST, (maxY - y) * scale + PAD];
+const r1 = (n) => Math.round(n * 10) / 10;
+
+function ringArea(ring) {
   let a = 0;
-  let cx = 0;
-  let cy = 0;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const f = poly[j][0] * poly[i][1] - poly[i][0] * poly[j][1];
-    a += f;
-    cx += (poly[j][0] + poly[i][0]) * f;
-    cy += (poly[j][1] + poly[i][1]) * f;
-  }
-  return [cx / (3 * a), cy / (3 * a)];
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += (ring[j][0] + ring[i][0]) * (ring[j][1] - ring[i][1]);
+  return Math.abs(a / 2);
 }
-function roomAt(p, poly) {
+const toPixels = (geom) =>
+  polygonsOf(geom)
+    .map((poly) => poly.map((ring) => ring.map(px)))
+    .sort((a, b) => ringArea(b[0]) - ringArea(a[0]))
+    .filter((p, i) => i === 0 || ringArea(p[0]) >= 12);
+const pathOf = (polys) => polys.map((poly) => poly.map((ring) => `M${ring.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}Z`).join('')).join('');
+function distToRings(p, rings) {
   let best = Infinity;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [ax, ay] = poly[j];
-    const dx = poly[i][0] - ax;
-    const dy = poly[i][1] - ay;
-    const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (dx * dx + dy * dy || 1)));
-    best = Math.min(best, Math.hypot(p[0] - ax - t * dx, p[1] - ay - t * dy));
-  }
+  for (const ring of rings)
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [ax, ay] = ring[j];
+      const dx = ring[i][0] - ax;
+      const dy = ring[i][1] - ay;
+      const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (dx * dx + dy * dy || 1)));
+      best = Math.min(best, Math.hypot(p[0] - ax - t * dx, p[1] - ay - t * dy));
+    }
   return best;
 }
-
-const art = { width: WIDTH, height: HEIGHT, territories: {}, regions: {}, walls: [], park: '' };
-for (const [id] of PLACES) {
-  const cell = cells.get(id);
-  const [x, y] = centre(cell);
-  art.territories[id] = { d: pathOf(cell), x: r1(x), y: r1(y), room: r1(roomAt([x, y], cell)) };
+function inside(p, rings) {
+  let inPoly = false;
+  for (const ring of rings)
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i];
+      const [xj, yj] = ring[j];
+      if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inPoly = !inPoly;
+    }
+  return inPoly;
 }
-art.park = PARK.map((_, i) => pathOf(cells.get(`PARK${i}`))).join('');
-const parkAt = PARK.map(px);
-art.parkLabel = { x: r1(parkAt.reduce((n, p) => n + p[0], 0) / parkAt.length), y: r1(parkAt.reduce((n, p) => n + p[1], 0) / parkAt.length) };
-const regionOf = Object.fromEntries(PLACES.map(([id, , region]) => [id, region]));
+/** The point inside a shape farthest from its edge: where the army token sits. */
+function labelPoint(rings) {
+  const xs = rings[0].map((p) => p[0]);
+  const ys = rings[0].map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  let best = [(x0 + x1) / 2, (y0 + y1) / 2];
+  let bestD = -1;
+  const step = Math.max(x1 - x0, y1 - y0) / 48;
+  for (let x = x0; x <= x1; x += step)
+    for (let y = y0; y <= y1; y += step) {
+      if (!inside([x, y], rings)) continue;
+      const d = distToRings([x, y], rings);
+      if (d > bestD) {
+        bestD = d;
+        best = [x, y];
+      }
+    }
+  return { x: r1(best[0]), y: r1(best[1]), room: r1(bestD) };
+}
+
+const art = { width: WIDTH, height: HEIGHT, territories: {}, regions: {}, walls: [] };
+const pixels = {};
+for (const f of geo.features) {
+  const polys = toPixels(f.geometry);
+  pixels[f.properties.terr] = polys;
+  art.territories[f.properties.terr] = { d: pathOf(polys), ...labelPoint(polys[0]) };
+}
+const regionOf = Object.fromEntries(places.map((p) => [p.id, p.region]));
 for (const r of REGIONS) {
-  const members = PLACES.filter(([, , region]) => region === r.id).map(([id]) => id);
-  // The region's edge: every stretch of a member's outline that does not face another member.
+  const members = places.filter((p) => p.region === r.id).map((p) => p.id);
+  // The region's edge: every stretch of border that does not separate two of its own members.
   let line = '';
-  for (const id of members) {
-    const cell = cells.get(id);
-    for (let i = 0; i < cell.length; i++) {
-      const a = cell[i];
-      const b = cell[(i + 1) % cell.length];
-      const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      const own = dist(mid, sites.find((s) => s.id === id).p);
-      const facing = sites.find((o) => o.id !== id && Math.abs(dist(mid, o.p) - own) < 0.01);
-      if (facing && regionOf[facing.id] === r.id) continue;
-      line += `M${r1(a[0])} ${r1(a[1])}L${r1(b[0])} ${r1(b[1])}`;
+  for (const [i, owners] of arcOwners) {
+    const mine = [...owners].filter((t) => regionOf[t] === r.id);
+    if (mine.length === 0 || (owners.size === 2 && mine.length === 2)) continue;
+    line += `M${arcPoints(i).map((p) => px(p)).map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}`;
+  }
+  const pts = members.map((id) => art.territories[id]);
+  art.regions[r.id] = {
+    d: members.map((id) => pathOf(pixels[id])).join(''),
+    line,
+    x: r1(pts.reduce((n, p) => n + p.x, 0) / pts.length),
+    y: r1(pts.reduce((n, p) => n + p.y, 0) / pts.length),
+  };
+}
+// Park walls: the border itself, and evenly spaced points along it for the trees.
+const MARK_EVERY = 12;
+for (const w of mapData.walls) {
+  const key = pairKey(w.a, w.b);
+  const lines = [...arcOwners].filter(([, o]) => o.size === 2 && pairKey(...o) === key).map(([i]) => arcPoints(i).map(px));
+  const marks = [];
+  for (const lineOf of lines) {
+    let carried = MARK_EVERY / 2;
+    for (let i = 1; i < lineOf.length; i++) {
+      const [ax, ay] = lineOf[i - 1];
+      const [bx, by] = lineOf[i];
+      const len = Math.hypot(bx - ax, by - ay);
+      for (; carried <= len; carried += MARK_EVERY) marks.push([r1(ax + ((bx - ax) * carried) / len), r1(ay + ((by - ay) * carried) / len)]);
+      carried -= len;
     }
   }
-  const pts = members.map((id) => [art.territories[id].x, art.territories[id].y]);
-  art.regions[r.id] = {
-    d: members.map((id) => pathOf(cells.get(id))).join(''),
-    line,
-    x: r1(pts.reduce((n, p) => n + p[0], 0) / pts.length),
-    y: r1(pts.reduce((n, p) => n + p[1], 0) / pts.length),
-  };
+  const longest = lines.reduce((a, b) => (b.length > a.length ? b : a));
+  const mid = longest[Math.floor(longest.length / 2)];
+  art.walls.push({ ...w, d: lines.map((l) => `M${l.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}`).join(''), marks, label: { x: r1(mid[0]), y: r1(mid[1]) } });
 }
 writeFileSync(join(root, 'packages/web/src/mumbaiShapes.json'), JSON.stringify(art));
 
-// -------------------------------------------------------------------- report
+// ------------------------------------------------------------------ report
 
-const neighbours = Object.fromEntries(PLACES.map(([id]) => [id, []]));
-for (const [a, b] of [...land, ...SEA]) {
+const neighbours = Object.fromEntries(places.map((p) => [p.id, []]));
+for (const [a, b] of [...land, ...BRIDGES, ...SEA]) {
   neighbours[a].push(b);
   neighbours[b].push(a);
 }
-console.log(`Mumbai: ${PLACES.length} neighbourhoods, ${land.length} borders, ${SEA.length} sea routes.`);
-for (const [id, name] of PLACES) console.log(`  ${name.padEnd(18)} ${neighbours[id].join(' ')}`);
-const tight = Object.entries(art.territories).sort((a, b) => a[1].room - b[1].room).slice(0, 6);
-console.log('Tightest token spots:', tight.map(([id, t]) => `${id} ${t.room}px`).join(', '));
+console.log(`Mumbai: ${places.length} territories, ${land.length} borders, ${BRIDGES.length} bridges, ${SEA.length} sea routes, ${mapData.walls.length} park walls. Canvas ${WIDTH}×${HEIGHT}.`);
+for (const p of places) console.log(`  ${p.name.padEnd(18)} ${neighbours[p.id].join(' ')}`);
+console.log('Short borders:', [...sharedKm].filter(([, km]) => km < 1).map(([k, km]) => `${k} ${km.toFixed(2)}km`).join(', ') || 'none');
+console.log('Tightest token spots:', Object.entries(art.territories).sort((a, b) => a[1].room - b[1].room).slice(0, 8).map(([id, t]) => `${id} ${t.room}px`).join(', '));

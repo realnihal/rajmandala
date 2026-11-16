@@ -1,4 +1,4 @@
-import { OUTPOSTS, REGIONS, SAMRAJYA_NEEDED, TERRITORY_IDS, activeMap, isAdjacent, isRiver, isTerritory, neighbors, selectMap, territory } from './map';
+import { OUTPOSTS, REGIONS, SAMRAJYA_NEEDED, TERRITORY_IDS, activeMap, isAdjacent, isMapId, isRiver, isTerritory, neighbors, selectMap, territory } from './map';
 import type { MapId, Suit, TerritoryId } from './map';
 import { rollDie, shuffle } from './rng';
 import { RuleError } from './types';
@@ -50,6 +50,18 @@ function clone<T>(x: T): T {
 
 function isPositiveInt(n: unknown): n is number {
   return typeof n === 'number' && Number.isInteger(n) && n > 0;
+}
+
+/**
+ * True if a saved game can still be played: same rules version, on a map this
+ * version knows, with exactly that map's territories. A map that has been
+ * redrawn since the game was saved fails this.
+ */
+export function isPlayable(state: GameState): boolean {
+  if (state.rulesVersion !== RULES_VERSION || !isMapId(state.map ?? 'india')) return false;
+  selectMap(state.map ?? 'india');
+  const held = Object.keys(state.territories);
+  return held.length === TERRITORY_IDS.length && TERRITORY_IDS.every((id) => id in state.territories);
 }
 
 // ---------------------------------------------------------------- queries
