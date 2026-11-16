@@ -18,6 +18,10 @@ import type {
 /** Changes whenever the map or the rules change in a way an unfinished game cannot survive. */
 export const RULES_VERSION = 2;
 export const SAMRAJYA_TARGET = 28;
+/** The Samrajya target for the map in use: 28 on the 43-territory map of India, and the same share of any other map. */
+export function samrajyaTarget(): number {
+  return Math.ceil((TERRITORY_IDS.length * SAMRAJYA_TARGET) / 43);
+}
 export const CAPITAL_CAPTURE_BONUS = 3;
 export const MONSOON_EVERY = 4;
 export const WILD_CARDS: readonly CardId[] = ['RATHA1', 'RATHA2'];
@@ -225,7 +229,7 @@ function startRound(s: GameState, ev: GameEvent[], round: number): void {
 
 function meetsEndOfTurnVictory(s: GameState, player: PlayerId): boolean {
   const owned = new Set(territoriesOf(s, player));
-  if (s.victory === 'samrajya') return owned.size >= SAMRAJYA_TARGET;
+  if (s.victory === 'samrajya') return owned.size >= samrajyaTarget();
   if (s.victory === 'capitals') {
     const own = s.players[player].capital;
     const enemy = s.turnOrder.filter((id) => id !== player && owned.has(s.players[id].capital ?? '')).length;
