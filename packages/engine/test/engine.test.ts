@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   LAND_EDGES,
+  MAPS,
+  awaitedPlayers,
+  botAction,
+  samrajyaTarget,
+  selectMap,
   REGIONS,
   SEAT_COMPENSATION,
   SEA_EDGES,
@@ -571,5 +576,52 @@ describe('the Siliguri corridor and the walls (map)', () => {
       expectRule(() => applyAction(s, me, { type: 'attack', from, to, dice: 1 }), 'not-adjacent');
     }
     applyAction(s, me, { type: 'attack', from: 'PUR', to: 'MHK', dice: 1 }); // the way round is open
+  });
+});
+
+describe('more than one map', () => {
+  it('has a valid Mumbai map, a smaller quick game', () => {
+    selectMap('mumbai');
+    expect(validateMap()).toEqual([]);
+    expect(TERRITORIES).toHaveLength(29);
+    expect(samrajyaTarget()).toBe(17);
+    selectMap('india');
+    expect(TERRITORIES).toHaveLength(43);
+    expect(samrajyaTarget()).toBe(28);
+  });
+
+  it.each([2, 3, 4, 6])('plays a whole %i-player game on Mumbai, with armies scaled to the map', (n) => {
+    let s = createGame({ players: NAMES.slice(0, n), seed: n * 13, map: 'mumbai' }).state;
+    expect(s.map).toBe('mumbai');
+    expect(Object.keys(s.territories)).toHaveLength(29);
+    if (n === 2) expect(territoriesOf(s, s.turnOrder[0])).toHaveLength(9);
+    const rand = lcg(n);
+    for (let i = 0; i < 60_000 && s.phase !== 'finished'; i++) {
+      const p = awaitedPlayers(s)[0];
+      s = applyAction(s, p, botAction(s, p, rand, 'play')!).state;
+    }
+    expect(s.phase).toBe('finished');
+    selectMap('india');
+  });
+
+  it('keeps games on different maps apart when they are played side by side', () => {
+    let india = started(3, 4);
+    let city = createGame({ players: NAMES.slice(0, 3), seed: 4, map: 'mumbai' }).state;
+    const rand = lcg(9);
+    // Alternate one move in each game, as a server with two rooms would.
+    for (let i = 0; i < 300; i++) {
+      for (const game of ['india', 'city'] as const) {
+        const s = game === 'india' ? india : city;
+        if (s.phase === 'finished') continue;
+        const p = awaitedPlayers(s)[0];
+        const next = applyAction(s, p, botAction(s, p, rand, 'play')!).state;
+        if (game === 'india') india = next;
+        else city = next;
+      }
+    }
+    expect(Object.keys(india.territories)).toHaveLength(43);
+    expect(Object.keys(city.territories)).toHaveLength(29);
+    expect(Object.keys(MAPS)).toEqual(['india', 'mumbai']);
+    selectMap('india');
   });
 });

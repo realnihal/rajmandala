@@ -1,5 +1,5 @@
-import { OUTPOSTS, REGIONS, TERRITORY_IDS, isAdjacent, isRiver, isTerritory, neighbors, territory } from './map';
-import type { Suit, TerritoryId } from './map';
+import { OUTPOSTS, REGIONS, SAMRAJYA_NEEDED, TERRITORY_IDS, activeMap, isAdjacent, isRiver, isTerritory, neighbors, selectMap, territory } from './map';
+import type { MapId, Suit, TerritoryId } from './map';
 import { rollDie, shuffle } from './rng';
 import { RuleError } from './types';
 import type {
@@ -18,6 +18,11 @@ import type {
 /** Changes whenever the map or the rules change in a way an unfinished game cannot survive. */
 export const RULES_VERSION = 2;
 export const SAMRAJYA_TARGET = 28;
+const FULL_MAP = 43;
+/** The Samrajya target on the map in use: 28 of India's 43 territories; each map may set its own. */
+export function samrajyaTarget(): number {
+  return SAMRAJYA_NEEDED;
+}
 export const CAPITAL_CAPTURE_BONUS = 3;
 export const MONSOON_EVERY = 4;
 export const WILD_CARDS: readonly CardId[] = ['RATHA1', 'RATHA2'];
@@ -25,7 +30,10 @@ export const WILD_CARDS: readonly CardId[] = ['RATHA1', 'RATHA2'];
 const START_ARMIES: Record<number, number> = { 2: 40, 3: 35, 4: 30, 5: 25, 6: 20 };
 /** Extra starting armies per seat after the first. Set from bot simulations. */
 export const SEAT_COMPENSATION = 2;
-const TWO_PLAYER_TERRITORIES = 14; // each; the rest of the map starts neutral
+/** In a two-player game each player gets a third of the map and the rest starts neutral. */
+const twoPlayerShare = () => Math.floor(TERRITORY_IDS.length / 3);
+/** Starting armies, in proportion to the size of the map. */
+const startArmies = (players: number) => Math.round((START_ARMIES[players] * TERRITORY_IDS.length) / FULL_MAP);
 const NEUTRAL_ARMIES = 2;
 const SET_VALUES: Record<Suit, number> = { padati: 4, ashva: 6, gaja: 8 };
 const MIXED_SET_VALUE = 10;
@@ -144,15 +152,19 @@ export interface GameConfig {
   players: PlayerId[];
   seed: number;
   victory?: VictoryMode;
+  /** Which map to play on; India if not given. */
+  map?: MapId;
 }
 
 export function createGame(cfg: GameConfig): Result {
   const n = cfg.players.length;
   if (!(n in START_ARMIES)) throw new Error('A game needs 2 to 6 players');
   if (new Set(cfg.players).size !== n || cfg.players.includes('neutral')) throw new Error('Invalid player ids');
+  selectMap(cfg.map ?? 'india');
 
   const s: GameState = {
     rulesVersion: RULES_VERSION,
+    map: cfg.map ?? activeMap(),
     victory: cfg.victory ?? 'samrajya',
     phase: 'setup-capital',
     round: 0,
@@ -173,7 +185,7 @@ export function createGame(cfg: GameConfig): Result {
   const dealt = shuffle(s, TERRITORY_IDS);
   dealt.forEach((id, i) => {
     if (n === 2) {
-      const seat = Math.floor(i / TWO_PLAYER_TERRITORIES);
+      const seat = Math.floor(i / twoPlayerShare());
       s.territories[id] = seat < 2 ? { owner: s.turnOrder[seat], armies: 1 } : { owner: 'neutral', armies: NEUTRAL_ARMIES };
     } else {
       // Dealt from the last seat backwards, so leftovers go to players late in turn order.
@@ -187,7 +199,7 @@ export function createGame(cfg: GameConfig): Result {
       capital: null,
       alive: true,
       // Later seats get extra starting armies to offset the advantage of moving first.
-      setupArmies: START_ARMIES[n] - territoriesOf(s, id).length + s.turnOrder.indexOf(id) * SEAT_COMPENSATION,
+      setupArmies: startArmies(n) - territoriesOf(s, id).length + s.turnOrder.indexOf(id) * SEAT_COMPENSATION,
       setupPlacement: null,
       surrendered: false,
     };
@@ -225,7 +237,7 @@ function startRound(s: GameState, ev: GameEvent[], round: number): void {
 
 function meetsEndOfTurnVictory(s: GameState, player: PlayerId): boolean {
   const owned = new Set(territoriesOf(s, player));
-  if (s.victory === 'samrajya') return owned.size >= SAMRAJYA_TARGET;
+  if (s.victory === 'samrajya') return owned.size >= samrajyaTarget();
   if (s.victory === 'capitals') {
     const own = s.players[player].capital;
     const enemy = s.turnOrder.filter((id) => id !== player && owned.has(s.players[id].capital ?? '')).length;
@@ -489,6 +501,7 @@ function surrender(s: GameState, ev: GameEvent[], p: PlayerState): void {
  */
 export function applyAction(state: GameState, player: PlayerId, action: Action): Result {
   if (state.phase === 'finished') fail('game-over', 'The game is over');
+  selectMap(state.map ?? 'india');
   const s = clone(state);
   const ev: GameEvent[] = [];
   const p = s.players[player];

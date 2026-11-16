@@ -6,6 +6,8 @@ A multiplayer conquest game on the map of India, for 2 to 6 players. Deploy armi
 
 Create a room, share the invite link or the 6-character code, and start when everyone is ready.
 
+There are two maps: **India**, the full game on 43 territories, and **Mumbai**, a quick game on 29 neighbourhoods that runs a quarter to a third shorter.
+
 ## How it is put together
 
 | Part | Where | What it does |
@@ -14,7 +16,7 @@ Create a room, share the invite link or the 6-character code, and start when eve
 | Game server | [`packages/web/worker`](packages/web/worker) | A Cloudflare Worker with one Durable Object per room. |
 | Room rules | [`packages/server`](packages/server) | Seats, invites, reconnects and the message protocol. |
 | Game rules | [`packages/engine`](packages/engine) | The whole game as a pure, tested module, plus the map data. |
-| Map builder | [`tools/map-build`](tools/map-build) | Turns district boundaries into the 43 territory shapes. |
+| Map builder | [`tools/map-build`](tools/map-build) | Turns district boundaries into India's 43 territory shapes, and draws the stylised Mumbai map. |
 
 The design, rules and build plan are in [rajmandala-game-plan.md](rajmandala-game-plan.md).
 
@@ -46,4 +48,6 @@ The code is released under the [MIT licence](LICENSE). The boundary data in `too
 
 ## Credits
 
-Territory boundaries are built from the Census 2011 district map by the [DataMeet India community](https://github.com/datameet/maps/tree/master/Districts/Census_2011), shared under [Creative Commons Attribution 2.5 India](http://creativecommons.org/licenses/by/2.5/in/).
+The Mumbai map is a stylised diagram drawn by the project itself, from a hand-simplified coastline; it uses no boundary data and is not to scale.
+
+India's territory boundaries are built from the Census 2011 district map by the [DataMeet India community](https://github.com/datameet/maps/tree/master/Districts/Census_2011), shared under [Creative Commons Attribution 2.5 India](http://creativecommons.org/licenses/by/2.5/in/).

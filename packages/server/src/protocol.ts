@@ -1,7 +1,7 @@
-import type { Action, GameEvent, GameView, PlayerId, VictoryMode } from '@rajmandala/engine';
+import type { Action, GameEvent, GameView, MapId, PlayerId, VictoryMode } from '@rajmandala/engine';
 
 /** Bumped whenever a message changes shape; an old client is told to reload. */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 /** How many colours a player can choose from. The colours themselves belong to the screen. */
 export const COLOR_COUNT = 8;
@@ -14,6 +14,8 @@ export interface RoomOptions {
   autoPlace: boolean;
   /** Seconds a player has for a turn before it is played for them; 0 means no limit. */
   turnSeconds: number;
+  /** Which map the game is played on. */
+  map: MapId;
 }
 
 export const TURN_SECONDS = [0, 60, 180, 86400];
