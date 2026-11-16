@@ -335,14 +335,3 @@ button.big { width: 100%; padding: 0.8rem; font-size: 1.05rem; }
 .names label .swatch { margin-right: 0.5rem; }
 .colours { margin-top: 0.8rem; gap: 0.45rem; }
 .colours > span { margin-right: 0.3rem; font-size: 0.88rem; color: #5b4a36; }
-
-/* ---------- map choice, and Mumbai's parkland */
-.mapchoice { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-.mapchoice button, .menu .mapchoice button { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; text-align: left; padding: 0.7rem 0.8rem; border-radius: 12px; border: 1.5px solid #dccfb8; background: #fff; font-weight: 400; }
-.mapchoice button b { font-size: 1.02rem; }
-.mapchoice button span { font-size: 0.8rem; color: #6b5c48; line-height: 1.3; }
-.mapchoice button.on, .menu .mapchoice button.on { border-color: #d0822a; box-shadow: 0 0 0 3px rgba(240, 166, 58, 0.3); background: #fff8ea; }
-.park { pointer-events: none; }
-.park path { fill: #b9d8a8; stroke: #2f6b2c; stroke-width: 1.2; stroke-opacity: 0.6; }
-.park text { font-family: 'Iowan Old Style', Palatino, Georgia, serif; font-style: italic; font-size: 12px; font-weight: 700; text-anchor: middle; fill: #254a22; paint-order: stroke; stroke: rgba(255, 255, 255, 0.8); stroke-width: 2.6px; }
-@media (max-width: 520px) { .mapchoice { grid-template-columns: 1fr; } }

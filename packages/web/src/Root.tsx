@@ -80,7 +80,7 @@ function Home() {
     <MenuShell className="home">
       <Brand />
       <ul className="points">
-        <li>Two maps: all of India, or a quick game in Mumbai</li>
+        <li>The real map of India, in 43 territories</li>
         <li>Online with friends, or on one screen</li>
         <li>Computer players fill empty seats</li>
       </ul>

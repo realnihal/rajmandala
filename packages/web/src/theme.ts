@@ -6,9 +6,6 @@ export const REGION_LINE: Record<string, string> = {
   central: '#2f6b1c',
   south: '#8a2a74',
   northeast: '#0f7265',
-  // Mumbai
-  western: '#b3420f',
-  eastern: '#0f7265',
 };
 export const OUTPOST_LINE = '#55617a';
 

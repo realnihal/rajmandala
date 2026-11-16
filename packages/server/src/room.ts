@@ -1,4 +1,4 @@
-import { RULES_VERSION, RuleError, applyAction, awaitedPlayers, botAction, createGame, currentPlayer, isMapId, isTerritory, randomPlacement, selectMap, viewFor } from '@rajmandala/engine';
+import { RULES_VERSION, RuleError, applyAction, awaitedPlayers, botAction, createGame, currentPlayer, isTerritory, randomPlacement, viewFor } from '@rajmandala/engine';
 import type { Action, GameEvent, GameState, PlayerId } from '@rajmandala/engine';
 import { COLOR_COUNT, PROTOCOL_VERSION, TURN_SECONDS } from './protocol';
 import type { ChatLine, ClientMsg, RoomOptions, RoomStatus, RoomView, ServerMsg } from './protocol';
@@ -71,7 +71,7 @@ const CHAT_KEPT = 40;
 const CHAT_GAP_MS = 700;
 const BOT_NAMES = ['Chanakya', 'Ashoka', 'Akbar', 'Shivaji', 'Lakshmibai', 'Tipu'];
 const DAY = 86_400_000;
-export const DEFAULT_OPTIONS: RoomOptions = { victory: 'samrajya', seats: 4, autoPlace: true, turnSeconds: 180, map: 'india' };
+export const DEFAULT_OPTIONS: RoomOptions = { victory: 'samrajya', seats: 4, autoPlace: true, turnSeconds: 180 };
 
 export function cleanName(name: unknown, fallback = 'Player'): string {
   const s = typeof name === 'string' ? name.replace(/\s+/g, ' ').trim().slice(0, 16) : '';
@@ -90,8 +90,7 @@ export function validOptions(o: unknown): o is RoomOptions {
     r.seats <= 6 &&
     typeof r.autoPlace === 'boolean' &&
     typeof r.turnSeconds === 'number' &&
-    TURN_SECONDS.includes(r.turnSeconds) &&
-    isMapId(r.map)
+    TURN_SECONDS.includes(r.turnSeconds)
   );
 }
 
@@ -128,7 +127,6 @@ export class RoomCore {
     }
     // Rooms stored before these fields existed are brought up to date.
     data.options.turnSeconds ??= 0;
-    data.options.map ??= 'india';
     data.chat ??= [];
     data.deadline ??= null;
     data.waitingOn ??= '';
@@ -247,13 +245,7 @@ export class RoomCore {
         if (!isHost || d.status !== 'lobby') return this.reject(conn, 'not-allowed', 'Only the host can change options before the game');
         if (!validOptions(msg.options)) return this.reject(conn, 'bad-options', 'Invalid options');
         if (msg.options.seats < d.members.length) return this.reject(conn, 'bad-options', 'More players are seated than that');
-        d.options = {
-          victory: msg.options.victory,
-          seats: msg.options.seats,
-          autoPlace: msg.options.autoPlace,
-          turnSeconds: msg.options.turnSeconds,
-          map: msg.options.map,
-        };
+        d.options = { victory: msg.options.victory, seats: msg.options.seats, autoPlace: msg.options.autoPlace, turnSeconds: msg.options.turnSeconds };
         return this.changed(chance);
       case 'kick':
         if (!isHost || d.status !== 'lobby' || msg.id === me!.id || !this.member(msg.id)) {
@@ -283,7 +275,6 @@ export class RoomCore {
         const g = d.game;
         const aiming = msg.from !== null && msg.to !== null;
         if (!me || d.status !== 'playing' || !g || g.round === 0 || currentPlayer(g) !== me.id) return { persist: false, send: [] };
-        selectMap(g.map);
         if (aiming && (!isTerritory(msg.from) || !isTerritory(msg.to))) return this.reject(conn, 'bad-message', 'Unknown territory');
         const from = aiming ? msg.from : null;
         const to = aiming ? msg.to : null;
@@ -343,7 +334,7 @@ export class RoomCore {
     if (!isHost || d.status !== 'lobby') return this.reject(conn, 'not-allowed', 'Only the host can start the game');
     if (d.members.length < 2) return this.reject(conn, 'not-ready', 'A game needs at least two players');
     if (d.members.some((m) => m.id !== d.hostId && !m.ready && !m.bot)) return this.reject(conn, 'not-ready', 'Everyone must be ready');
-    const created = createGame({ players: d.members.map((m) => m.id), seed: chance.seed(), victory: d.options.victory, map: d.options.map });
+    const created = createGame({ players: d.members.map((m) => m.id), seed: chance.seed(), victory: d.options.victory });
     d.game = created.state;
     d.status = 'playing';
     for (const m of d.members) m.recent = [];

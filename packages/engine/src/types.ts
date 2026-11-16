@@ -1,4 +1,4 @@
-import type { MapId, TerritoryId } from './map';
+import type { TerritoryId } from './map';
 
 export type PlayerId = string;
 export type Owner = PlayerId | 'neutral';
@@ -44,8 +44,6 @@ export interface PendingOccupy {
 
 export interface GameState {
   rulesVersion: number;
-  /** Which map this game is played on. */
-  map: MapId;
   victory: VictoryMode;
   phase: Phase;
   /** 0 during setup; the first round is 1. Every fourth round is a Monsoon. */

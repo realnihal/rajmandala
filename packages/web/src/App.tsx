@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
-  MAPS,
   RULES_VERSION,
+  SAMRAJYA_TARGET,
   TERRITORIES,
-  samrajyaTarget,
-  selectMap,
   WILD_CARDS,
   applyAction,
   bestSet,
@@ -22,7 +20,7 @@ import {
   territory,
   viewFor,
 } from '@rajmandala/engine';
-import type { Action, CardId, GameEvent, GameState, GameView, MapId, PlayerId, TerritoryId, VictoryMode } from '@rajmandala/engine';
+import type { Action, CardId, GameEvent, GameState, GameView, PlayerId, TerritoryId, VictoryMode } from '@rajmandala/engine';
 import type { ChatLine } from '@rajmandala/server';
 import Board from './Board';
 import { MenuShell } from './Menu';
@@ -64,11 +62,8 @@ export interface GameUpdate {
 const PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 
 const SAVE_KEY = 'rajmandala-hotseat-v1';
-/** Name and one-line description of each way to win. Read when shown, because the numbers depend on the map in use. */
 export const VICTORY_TEXT: Record<VictoryMode, [string, string]> = {
-  get samrajya(): [string, string] {
-    return ['Samrajya', `Hold ${samrajyaTarget()} of ${TERRITORIES.length} territories at the end of your turn`];
-  },
+  samrajya: ['Samrajya', `Hold ${SAMRAJYA_TARGET} of ${TERRITORIES.length} territories at the end of your turn`],
   digvijaya: ['Digvijaya', 'Eliminate every other player'],
   capitals: ['Capitals', 'Hold your own capital and two enemy capitals at the end of your turn'],
 };
@@ -176,8 +171,6 @@ function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () 
   const [victory, setVictory] = useState<VictoryMode>('samrajya');
   const [quick, setQuick] = useState(true);
   const [colors, setColors] = useState([0, 1, 2, 3, 4, 5]);
-  const [map, setMap] = useState<MapId>('india');
-  selectMap(map); // so the numbers shown below are for the chosen map
 
   /** Moves a player on to the next colour nobody else at the table is using. */
   function nextColor(i: number) {
@@ -192,7 +185,7 @@ function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () 
     const ids = Array.from({ length: count }, (_, i) => `p${i + 1}`);
     const nameMap = Object.fromEntries(ids.map((id, i) => [id, names[i].trim() || `Player ${i + 1}`]));
     const seed = crypto.getRandomValues(new Uint32Array(1))[0];
-    const game = createGame({ players: ids, seed, victory, map }).state;
+    const game = createGame({ players: ids, seed, victory }).state;
     const colorMap = Object.fromEntries(ids.map((id, i) => [id, colors[i]]));
     onStart({ id: crypto.randomUUID(), game, names: nameMap, colors: colorMap, autoPlace: quick });
   }
@@ -204,11 +197,6 @@ function NewGame({ onStart, onBack }: { onStart: (s: Saved) => void; onBack: () 
       </button>
       <h1>Play on this screen</h1>
       <p className="lede">2 to 6 players take turns on one device.</p>
-
-      <section>
-        <h2>Map</h2>
-        <MapChoice value={map} onChange={setMap} />
-      </section>
 
       <section>
         <h2>Players</h2>
@@ -314,7 +302,6 @@ function formatLeft(ms: number): string {
 export function Game(props: GameProps) {
   const { names, update, hotseat = false, viewer, send, serverError, quit, finished, banner, deadline = null, chat, onChat, onSurrender, aim = null, onAim, colors } = props;
   const colorOf = colorLookup(colors);
-  selectMap(update.view.map ?? 'india');
   const [game, setGame] = useState(update.view);
   const [log, setLog] = useState<string[]>([]);
   const [sel, setSel] = useState<{ from?: TerritoryId; to?: TerritoryId }>({});
@@ -780,13 +767,7 @@ export function Game(props: GameProps) {
           <span className="chip">Peak: mountain, attackers roll one die fewer</span>
           <span className="chip">┄ sea route</span>
           <span className="credit">
-            {(game.map ?? 'india') === 'india' ? (
-              <>
-                Boundaries: <a href="https://github.com/datameet/maps">DataMeet India community</a>, CC BY 2.5 IN
-              </>
-            ) : (
-              'A stylised map of Mumbai, not to scale'
-            )}
+            Boundaries: <a href="https://github.com/datameet/maps">DataMeet India community</a>, CC BY 2.5 IN
           </span>
         </div>
       </div>
@@ -1032,19 +1013,5 @@ function Die({ value, rolling, defence, lost }: { value: number; rolling: boolea
         <i key={i} className={PIPS[face].includes(i) ? 'pip' : ''} />
       ))}
     </span>
-  );
-}
-
-/** Picks the map for a new game. */
-export function MapChoice({ value, onChange, disabled }: { value: MapId; onChange: (map: MapId) => void; disabled?: boolean }) {
-  return (
-    <div className="mapchoice" role="radiogroup" aria-label="Map">
-      {(Object.keys(MAPS) as MapId[]).map((id) => (
-        <button key={id} type="button" role="radio" aria-checked={value === id} className={value === id ? 'on' : ''} disabled={disabled} onClick={() => onChange(id)}>
-          <b>{MAPS[id].name}</b>
-          <span>{MAPS[id].blurb}</span>
-        </button>
-      ))}
-    </div>
   );
 }

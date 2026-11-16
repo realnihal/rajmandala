@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyAction, botAction, createGame, selectMap, territoriesOf } from '@rajmandala/engine';
+import { applyAction, botAction, createGame, territoriesOf } from '@rajmandala/engine';
 import type { Action, GameState, PlayerId } from '@rajmandala/engine';
 import { botMove, lcg } from '../../engine/test/helpers';
 import { PROTOCOL_VERSION, RoomCore, newRoom } from '../src';
@@ -38,7 +38,7 @@ function table(data: RoomData = newRoom('ABCDEF')) {
 }
 
 function startedTable(players = 3, autoPlace = true, turnSeconds = 0) {
-  const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: players, autoPlace, turnSeconds, map: 'india' }));
+  const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: players, autoPlace, turnSeconds }));
   for (let i = 1; i <= players; i++) t.join(`c${i}`, i);
   for (let i = 2; i <= players; i++) t.send(`c${i}`, { t: 'ready', ready: true });
   t.send('c1', { t: 'start' });
@@ -62,7 +62,7 @@ describe('lobby', () => {
   });
 
   it('turns extra arrivals into spectators when the table is full', () => {
-    const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: 2, autoPlace: true, turnSeconds: 0, map: 'india' }));
+    const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: 2, autoPlace: true, turnSeconds: 0 }));
     t.join('a', 1);
     t.join('b', 2);
     t.join('c', 3);
@@ -80,7 +80,7 @@ describe('lobby', () => {
     const t = table();
     t.join('a', 1);
     t.join('b', 2);
-    const opts = { victory: 'capitals' as const, seats: 3, autoPlace: false, turnSeconds: 0, map: 'india' as const };
+    const opts = { victory: 'capitals' as const, seats: 3, autoPlace: false, turnSeconds: 0 };
     expect(t.send('b', { t: 'options', options: opts }).send[0].msg).toMatchObject({ t: 'error' });
     t.send('a', { t: 'options', options: opts });
     expect(t.state('b').room.options).toEqual(opts);
@@ -288,7 +288,7 @@ describe('timers and bots', () => {
   });
 
   it('lets the host add computer players, which play a whole game by themselves', () => {
-    const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: 3, autoPlace: true, turnSeconds: 0, map: 'india' }));
+    const t = table(newRoom('ABCDEF', { victory: 'samrajya', seats: 3, autoPlace: true, turnSeconds: 0 }));
     t.join('a', 1);
     t.send('a', { t: 'addBot' });
     t.send('a', { t: 'addBot' });
@@ -372,31 +372,5 @@ describe('colours', () => {
     t.send('c', { t: 'ready', ready: true });
     t.send('a', { t: 'start' });
     expect(t.send('b', { t: 'color', color: 7 }).send[0].msg).toMatchObject({ t: 'error', code: 'not-allowed' });
-  });
-});
-
-describe('choice of map', () => {
-  it('starts the game on the map the host chose, and a second room on another map is unaffected', () => {
-    const city = table(newRoom('MUMBAI', { victory: 'samrajya', seats: 2, autoPlace: true, turnSeconds: 0, map: 'mumbai' }));
-    const country = startedTable(2);
-    city.join('a', 1);
-    city.join('b', 2);
-    expect(city.send('a', { t: 'options', options: { ...city.state('a').room.options, map: 'atlantis' as never } }).send[0].msg).toMatchObject({ code: 'bad-options' });
-    city.send('b', { t: 'ready', ready: true });
-    city.send('a', { t: 'start' });
-    expect(city.state('b').game!.map).toBe('mumbai');
-    expect(Object.keys(city.state('b').game!.territories)).toHaveLength(29);
-
-    // Moves alternate between the two rooms.
-    // The test reads each game's territories itself, so it says which map it is looking at first.
-    const capital = (t: typeof city, p: string) => (selectMap(t.core.data.game!.map), t.send(p === 'p1' ? (t === city ? 'a' : 'c1') : t === city ? 'b' : 'c2', { t: 'action', id: `cap-${p}`, action: { type: 'chooseCapital', territory: territoriesOf(t.core.data.game!, p)[0] } }));
-    capital(city, 'p1');
-    capital(country, 'p1');
-    capital(city, 'p2');
-    capital(country, 'p2');
-    expect(city.core.data.game!.phase).toBe('reinforce');
-    expect(country.core.data.game!.phase).toBe('reinforce');
-    expect(Object.keys(country.core.data.game!.territories)).toHaveLength(43);
-    selectMap('india');
   });
 });

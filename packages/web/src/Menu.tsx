@@ -1,13 +1,10 @@
 import type { ReactNode } from 'react';
-import { MAPS } from '@rajmandala/engine';
+import { REGIONS, TERRITORIES } from '@rajmandala/engine';
 import shapes from './mapShapes.json';
 import { PLAYER_COLORS, REGION_LINE } from './theme';
 
 const SHAPES = shapes.territories as Record<string, { d: string }>;
 const REGION_SHAPES = shapes.regions as Record<string, { d: string }>;
-// Always the map of India, whichever map a game is being set up on.
-const TERRITORIES = MAPS.india.data.territories;
-const REGIONS = MAPS.india.data.regions;
 
 /** The map as decoration: every territory in one of the six player colours, as if a game were under way. */
 function MapArt() {

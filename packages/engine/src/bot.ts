@@ -1,6 +1,6 @@
 import { randomPlacement } from './auto';
 import { bestSet, currentPlayer, isConnected, isMonsoon, maxAttackDice, territoriesOf } from './engine';
-import { REGIONS, neighbors, selectMap, territory } from './map';
+import { REGIONS, neighbors, territory } from './map';
 import type { TerritoryId } from './map';
 import type { Action, GameState, PlayerId } from './types';
 
@@ -30,7 +30,6 @@ export function awaitedPlayers(s: GameState): PlayerId[] {
 /** The next action a bot takes for `player`, or null if the game is not waiting for them. */
 export function botAction(s: GameState, player: PlayerId, rand: () => number, style: BotStyle = 'play'): Action | null {
   if (!isAwaited(s, player)) return null;
-  selectMap(s.map ?? 'india');
   const smart = style === 'play';
   const p = s.players[player];
   const own = territoriesOf(s, player);
